@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+   <FileRef
+      location = "group:ProfileView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:PlanView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:HelpView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:TutorialView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:AboutView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:PROFILE_FEATURES_README.md">
+   </FileRef>
+   <FileRef
+      location = "group:NAVIGATION_FLOW.md">
+   </FileRef>
+   <FileRef
+      location = "group:QUICK_START.md">
+   </FileRef>
+</Workspace>
