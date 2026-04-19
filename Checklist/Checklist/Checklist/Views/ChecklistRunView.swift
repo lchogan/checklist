@@ -3,7 +3,7 @@
 ///   chips, add-item inline, menu sheet, and completion sheets. Items live on
 ///   the Checklist; per-run state (checks, hiddenTagIDs) lives on the current Run.
 /// Dependencies: SwiftUI, SwiftData, Checklist/Run/Item models, Theme,
-///   TopBar, BackButton, AddItemRowStub.
+///   TopBar, BackButton, AddItemRowStub, PreviousRunsStrip.
 /// Key concepts:
 ///   - Current-run selection: the earliest live Run (by startedAt) is the
 ///     "current" one. If no live runs exist, certain interactions auto-create
@@ -12,6 +12,8 @@
 ///   - The empty-items body shows a dashed AddItemRowStub (capture 11).
 ///   - BackButton is private to this file; it wraps IconButton to match the
 ///     circular-button design language.
+///   - `actionRowIfApplicable` gates the Complete / New-run buttons behind
+///     `!sortedItems.isEmpty && currentRun != nil` (Task 5.14).
 
 import SwiftUI
 import SwiftData
@@ -50,6 +52,11 @@ struct ChecklistRunView: View {
         (checklist.items ?? []).sorted { $0.sortKey < $1.sortKey }
     }
 
+    /// Task 5.13: Completed runs for this checklist sorted newest-first.
+    private var completedRunsSorted: [CompletedRun] {
+        (checklist.completedRuns ?? []).sorted { $0.completedAt > $1.completedAt }
+    }
+
     var body: some View {
         ZStack {
             Theme.backgroundGradient.ignoresSafeArea()
@@ -62,6 +69,8 @@ struct ChecklistRunView: View {
                 topBar
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     headerBlock
+                    // Task 5.13: shown only when no live run and completed runs exist.
+                    lastFinishedSubtitle
                     multiRunPill
                     tagChipBar
                     progressRow
@@ -78,10 +87,16 @@ struct ChecklistRunView: View {
                     }
                 } else {
                     itemsSection
+                    // Task 5.13: PreviousRunsStrip shown after items when no live run.
+                    if currentRun == nil, !completedRunsSorted.isEmpty {
+                        PreviousRunsStrip(completedRuns: Array(completedRunsSorted.prefix(5)))
+                            .padding(.top, Theme.Spacing.md)
+                            .padding(.bottom, Theme.Spacing.sm)
+                    }
                 }
 
-                // Action row sits outside the List so it remains pinned below items.
-                actionRow
+                // Task 5.14: Action row only when items exist and a live run is active.
+                actionRowIfApplicable
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -163,6 +178,39 @@ struct ChecklistRunView: View {
                 .foregroundColor(Theme.text)
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Last-finished subtitle (Task 5.13)
+
+    /// Subtitle shown under the checklist title when no live run is active but
+    /// at least one completed run exists (capture 12). Displays relative time
+    /// since the most recent completed run.
+    @ViewBuilder
+    private var lastFinishedSubtitle: some View {
+        if currentRun == nil, let last = completedRunsSorted.first {
+            HStack(spacing: 4) {
+                GemIcons.image("check")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Theme.emerald)
+                Text("Last finished \(relativeFinishedString(last))")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.dim)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+        }
+    }
+
+    /// Converts a `CompletedRun`'s completedAt timestamp to a human-readable
+    /// relative string such as "just now", "5m ago", "2h ago", or "3d ago".
+    ///
+    /// - Parameter run: The completed run to measure elapsed time from.
+    /// - Returns: A localised relative time string.
+    private func relativeFinishedString(_ run: CompletedRun) -> String {
+        let s = Date().timeIntervalSince(run.completedAt)
+        if s < 60      { return "just now" }
+        if s < 3600    { return "\(Int(s / 60))m ago" }
+        if s < 86_400  { return "\(Int(s / 3600))h ago" }
+        return "\(Int(s / 86_400))d ago"
     }
 
     // MARK: - Multi-run switcher pill (Task 5.12)
@@ -311,7 +359,17 @@ struct ChecklistRunView: View {
         .padding(.horizontal, Theme.Spacing.xl)
     }
 
-    // MARK: - Action row (Task 5.11)
+    // MARK: - Action row (Tasks 5.11 + 5.14)
+
+    /// Task 5.14: Wraps `actionRow` with a guard — renders nothing when there are no
+    /// items or when no live run is active. Prevents the action row from appearing in
+    /// the "no-current-run" state (capture 12) or the "empty items" state (capture 11).
+    @ViewBuilder
+    private var actionRowIfApplicable: some View {
+        if !sortedItems.isEmpty, currentRun != nil {
+            actionRow
+        }
+    }
 
     /// Bottom action row: "Complete" pill (citrine when partial, emerald when all-done)
     /// and "+ New run" ghost pill. Visible only when a live run exists.
