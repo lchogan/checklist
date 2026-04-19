@@ -111,7 +111,12 @@ struct ChecklistRunView: View {
             Text("This also removes any checks on this item. Runs already saved to history are untouched.")
         }
         .sheet(isPresented: $showMenu) {
-            ChecklistMenuSheet(checklist: checklist, currentRun: currentRun)
+            ChecklistMenuSheet(
+                checklist: checklist,
+                currentRun: currentRun,
+                onManageTags: nil,  // Phase 7 wires this — deliberate no-op here
+                onFullHistory: { path.append(HistoryScope(checklistID: checklist.id)) }
+            )
         }
         .sheet(isPresented: $showAddItem) {
             AddItemInline(checklist: checklist)

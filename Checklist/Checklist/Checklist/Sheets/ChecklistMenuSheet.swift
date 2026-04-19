@@ -9,8 +9,10 @@
 /// Key concepts:
 ///   - The sheet is self-contained: all four variants are nested inside the
 ///     same BottomSheet and controlled by the `variant` state var.
-///   - "Manage tags" and "Full history for this list" are placeholder no-ops
-///     in this plan — they dismiss the sheet. Those screens arrive in a later plan.
+///   - "Manage tags" and "Full history for this list" invoke optional parent
+///     callbacks (`onManageTags`, `onFullHistory`) after dismiss. The parent
+///     view (ChecklistRunView) appends the appropriate destination to the
+///     NavigationPath.
 ///   - Delete commits via ChecklistStore.delete(_:in:), which cascades runs and
 ///     completedRuns. The sheet dismisses after deleting; SwiftData's natural
 ///     unmount handles the RunView pop-back.
@@ -46,6 +48,14 @@ struct ChecklistMenuSheet: View {
 
     /// The currently-active live Run. Nil when no run is in progress.
     let currentRun: Run?
+
+    /// Called after `dismiss()` when the user taps "Manage tags" (Task 7.5).
+    /// Parent pushes `TagsView` on the NavigationPath.
+    var onManageTags: (() -> Void)? = nil
+
+    /// Called after `dismiss()` when the user taps "Full history for this list".
+    /// Parent pushes `HistoryView(scope: .checklist(checklist.id))`.
+    var onFullHistory: (() -> Void)? = nil
 
     // MARK: - State
 
@@ -111,13 +121,13 @@ struct ChecklistMenuSheet: View {
             }
 
             menuRow(icon: "tag", title: "Manage tags", tone: .normal) {
-                // TagsView arrives in a later plan. Placeholder: dismiss.
                 dismiss()
+                onManageTags?()
             }
 
             menuRow(icon: "history", title: "Full history for this list", tone: .normal) {
-                // HistoryView arrives in a later plan. Placeholder: dismiss.
                 dismiss()
+                onFullHistory?()
             }
 
             Divider()

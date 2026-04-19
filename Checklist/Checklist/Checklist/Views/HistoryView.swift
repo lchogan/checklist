@@ -39,6 +39,10 @@ struct HistoryView: View {
     @Query(sort: [SortDescriptor(\Checklist.sortKey, order: .forward)])
     private var checklists: [Checklist]
 
+    /// NavigationPath binding owned by HomeView. Tapping a history row appends
+    /// the run to this path so `CompletedRunView` is pushed.
+    @Binding var path: NavigationPath
+
     /// The state-filter chip currently selected. Task 6.6 hooks this up.
     @State private var stateFilter: StateFilter = .all
 
@@ -294,7 +298,7 @@ struct HistoryView: View {
     private func historyRow(_ run: CompletedRun) -> some View {
         let prog = CompletedRunProgress.compute(snapshot: run.snapshot)
         return Button {
-            // Wired in Task 6.8 (HistoryView accepts a path binding then).
+            path.append(run)
         } label: {
             HStack {
                 HeroGem(
@@ -373,7 +377,7 @@ struct HistoryView: View {
 #Preview("History — all (seeded)") {
     let container = try! SeedStore.container(for: .historicalRuns)
     return NavigationStack {
-        HistoryView(scope: .allLists)
+        HistoryView(scope: .allLists, path: .constant(NavigationPath()))
     }
     .modelContainer(container)
 }
@@ -381,7 +385,7 @@ struct HistoryView: View {
 #Preview("History — empty") {
     let container = try! SeedStore.container(for: .empty)
     return NavigationStack {
-        HistoryView(scope: .allLists)
+        HistoryView(scope: .allLists, path: .constant(NavigationPath()))
     }
     .modelContainer(container)
 }
