@@ -29,7 +29,7 @@ private struct AppRoot: View {
     var body: some View {
         Group {
             if let container = modelContainer {
-                ContentView()
+                HomeView()
                     .environmentObject(entitlementManager)
                     .environmentObject(storeKit)
                     .modelContainer(container)
@@ -66,19 +66,5 @@ private struct AppRoot: View {
         } catch {
             print("Failed to create ModelContainer: \(error)")
         }
-    }
-}
-
-/// Temporary placeholder until Phase 4 adds HomeView.
-private struct ContentView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Checklist")
-                .font(.largeTitle.bold())
-            Text("Foundation phase — UI coming in Plan 2.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
     }
 }
