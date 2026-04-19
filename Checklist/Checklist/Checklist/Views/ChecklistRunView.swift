@@ -34,7 +34,6 @@ struct ChecklistRunView: View {
     @State private var showAddItem = false
     @State private var editingItem: Item? = nil
     @State private var showCompletionSheet = false
-    @State private var showDiscardConfirm = false
     @State private var showRunChooser = false
     @State private var showStartRunSheet = false
     // Task 5.7: swipe-to-delete state
@@ -87,12 +86,6 @@ struct ChecklistRunView: View {
                     }
                 } else {
                     itemsSection
-                    // Task 5.13: PreviousRunsStrip shown after items when no live run.
-                    if currentRun == nil, !completedRunsSorted.isEmpty {
-                        PreviousRunsStrip(completedRuns: Array(completedRunsSorted.prefix(5)))
-                            .padding(.top, Theme.Spacing.md)
-                            .padding(.bottom, Theme.Spacing.sm)
-                    }
                 }
 
                 // Task 5.14: Action row only when items exist and a live run is active.
@@ -318,40 +311,53 @@ struct ChecklistRunView: View {
     /// plus a trailing AddItemRowStub. Check toggling wired to handleToggleCheck;
     /// body tap opens ItemEditInline in Task 5.9. Swipe right = complete (toggle),
     /// swipe left = delete (with multi-run warning when ≥2 live runs).
+    ///
+    /// Task 5.13: PreviousRunsStrip is embedded as a Section footer so it scrolls
+    /// with the item list rather than being pushed off-screen by a long list.
     private var itemsSection: some View {
         List {
-            ForEach(sortedItems) { item in
-                ItemRow(
-                    text: item.text,
-                    tags: tagTuples(for: item),
-                    display: display(for: item),
-                    onToggleCheck: { handleToggleCheck(item) },
-                    onTapBody:     { editingItem = item }
-                )
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    Button {
-                        handleToggleCheck(item)
-                    } label: {
-                        Label("Complete", systemImage: "checkmark")
+            Section {
+                ForEach(sortedItems) { item in
+                    ItemRow(
+                        text: item.text,
+                        tags: tagTuples(for: item),
+                        display: display(for: item),
+                        onToggleCheck: { handleToggleCheck(item) },
+                        onTapBody:     { editingItem = item }
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            handleToggleCheck(item)
+                        } label: {
+                            Label("Complete", systemImage: "checkmark")
+                        }
+                        .tint(Theme.emerald)
                     }
-                    .tint(Theme.emerald)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            attemptDelete(item)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        attemptDelete(item)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+                // Add-item stub lives inside the List so it scrolls with items.
+                AddItemRowStub { showAddItem = true }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+            } footer: {
+                // Task 5.13: PreviousRunsStrip as a List footer so it scrolls
+                // with the items and is never pushed off-screen on long lists.
+                if currentRun == nil, !completedRunsSorted.isEmpty {
+                    PreviousRunsStrip(completedRuns: Array(completedRunsSorted.prefix(5)))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
-            // Add-item stub lives inside the List so it scrolls with items.
-            AddItemRowStub { showAddItem = true }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
