@@ -1,6 +1,6 @@
-/// Category.swift
+/// ChecklistCategory.swift (file is Category.swift for historical reasons)
 /// Purpose: SwiftData model representing a top-level grouping for checklists.
-/// Dependencies: SwiftData, ChecklistItem (inverse relationship — Task 1.3).
+/// Dependencies: SwiftData, Checklist (inverse relationship).
 /// Key concepts: @Model macro, PersistentModel, nullify delete-rule.
 ///
 /// NOTE: Named `ChecklistCategory` (not `Category`) to avoid ambiguity with the

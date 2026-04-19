@@ -7,7 +7,7 @@ final class ChecklistModelTests: XCTestCase {
         // cloudKitDatabase: .none is required — see TestHelpers.makeTestConfig().
         let container = try ModelContainer(
             for: Checklist.self, ChecklistCategory.self, Item.self, Tag.self,
-                Run.self, CompletedRun.self,
+                Run.self, Check.self, CompletedRun.self,
             configurations: makeTestConfig()
         )
         return ModelContext(container)
