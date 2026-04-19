@@ -57,7 +57,7 @@ struct HomeView: View {
                             SummaryCardsRow(
                                 tagCount: tags.count,
                                 historyCount: completedRuns.count,
-                                onTagsTap:    { /* wired in Task 7.5 */ },
+                                onTagsTap:    { path.append(TagsDestination.root) },
                                 onHistoryTap: { path.append(HistoryScope.allLists) }
                             )
                             .padding(.top, Theme.Spacing.md)
@@ -75,6 +75,9 @@ struct HomeView: View {
             }
             .navigationDestination(for: HistoryScope.self) { scope in
                 HistoryView(scope: scope, path: $path)
+            }
+            .navigationDestination(for: TagsDestination.self) { _ in
+                TagsView()
             }
             .sheet(isPresented: $showCreateSheet) {
                 CreateChecklistSheet()

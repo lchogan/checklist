@@ -114,7 +114,7 @@ struct ChecklistRunView: View {
             ChecklistMenuSheet(
                 checklist: checklist,
                 currentRun: currentRun,
-                onManageTags: nil,  // Phase 7 wires this — deliberate no-op here
+                onManageTags: { path.append(TagsDestination.root) },
                 onFullHistory: { path.append(HistoryScope(checklistID: checklist.id)) }
             )
         }
