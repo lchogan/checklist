@@ -208,16 +208,63 @@ struct HistoryView: View {
         .padding(.horizontal, Theme.Spacing.xl)
     }
 
-    // MARK: - Feed + empty state (flat list in Task 6.5; month grouping in 6.6)
+    // MARK: - Feed + empty state
 
-    /// Flat list of rows. Month grouping lands in Task 6.6.
+    /// Month-grouped feed: one section per year-month present in `filteredRuns`.
+    /// Sections are ordered reverse-chrono (most recent month first).
     private var feed: some View {
-        VStack(spacing: Theme.Spacing.xs) {
-            ForEach(filteredRuns) { run in
-                historyRow(run)
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            ForEach(monthGroups, id: \.key) { group in
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    HStack {
+                        Text(group.label)
+                            .font(Theme.eyebrow()).tracking(2)
+                            .foregroundColor(Theme.dim)
+                        Spacer()
+                        Text("\(group.runs.count) RUN\(group.runs.count == 1 ? "" : "S")")
+                            .font(.system(size: 11, weight: .regular))
+                            .tracking(0.5)
+                            .foregroundColor(Theme.dimmer)
+                    }
+                    ForEach(group.runs) { run in
+                        historyRow(run)
+                    }
+                }
             }
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    /// One month bucket of runs plus its display label ("APRIL 2026").
+    private struct MonthBucket {
+        let key: String    // "YYYY-MM" for stable ForEach id
+        let label: String  // "APRIL 2026" — uppercase for display
+        let runs: [CompletedRun]
+    }
+
+    /// Groups `filteredRuns` into month buckets keyed by year-month, preserving
+    /// reverse-chronological order.
+    private var monthGroups: [MonthBucket] {
+        let runs = filteredRuns
+        var bucketsByKey: [String: [CompletedRun]] = [:]
+        var orderedKeys: [String] = []
+        let keyFormatter = DateFormatter()
+        keyFormatter.dateFormat = "yyyy-MM"
+        for run in runs {
+            let key = keyFormatter.string(from: run.completedAt)
+            if bucketsByKey[key] == nil {
+                orderedKeys.append(key)
+                bucketsByKey[key] = []
+            }
+            bucketsByKey[key]?.append(run)
+        }
+        let labelFormatter = DateFormatter()
+        labelFormatter.dateFormat = "LLLL yyyy"
+        return orderedKeys.map { key in
+            let bucket = bucketsByKey[key] ?? []
+            let label = labelFormatter.string(from: bucket.first?.completedAt ?? Date()).uppercased()
+            return MonthBucket(key: key, label: label, runs: bucket)
+        }
     }
 
     /// Tappable row per run — name + date + N/M. Task 6.8 wires the tap to
@@ -282,9 +329,21 @@ struct HistoryView: View {
         return allRuns.filter { $0.checklist?.id == id }
     }
 
-    /// Runs passed through both scope and state-filter chips. Task 6.6 expands
-    /// this to honour `stateFilter`; Task 6.5 returns `scopedRuns` as-is.
-    private var filteredRuns: [CompletedRun] { scopedRuns }
+    /// Runs passed through both scope and state filter chips. Partial/complete
+    /// is computed at view time from each snapshot (spec §3 decision 5).
+    private var filteredRuns: [CompletedRun] {
+        let base = scopedRuns
+        switch stateFilter {
+        case .all:      return base
+        case .complete: return base.filter {
+            CompletedRunProgress.compute(snapshot: $0.snapshot).isAllDone
+        }
+        case .partial:  return base.filter {
+            let p = CompletedRunProgress.compute(snapshot: $0.snapshot)
+            return p.total > 0 && !p.isAllDone
+        }
+        }
+    }
 }
 
 // MARK: - Previews
