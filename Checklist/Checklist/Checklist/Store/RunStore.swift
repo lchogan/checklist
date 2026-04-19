@@ -40,6 +40,52 @@ enum RunStore {
         return run
     }
 
+    /// Creates a new live `Run` pre-filled with `.complete` checks copied from
+    /// a sealed `CompletedRun`. Used by the "New run with checks from here"
+    /// CTA in `CompletedRunView`.
+    ///
+    /// Semantics (per spec §7 translation of prototype's "Start new run from here"):
+    /// - Only snapshot items currently still present on the checklist receive
+    ///   new checks — orphaned snapshot items are skipped.
+    /// - Only `.complete` state carries over; `.ignored` and unchecked entries
+    ///   leave no Check on the new run (user re-evaluates each item fresh).
+    /// - `hiddenTagIDs` on the new run is a verbatim copy of
+    ///   `snapshot.hiddenTagIDs`, so the view-filtering the user had in place
+    ///   at completion time is preserved.
+    ///
+    /// - Parameters:
+    ///   - list: The `Checklist` to run.
+    ///   - name: Optional label for the new run; defaults to nil.
+    ///   - source: The `CompletedRun` whose snapshot seeds the new run.
+    ///   - context: The `ModelContext` to insert and save into.
+    /// - Returns: The newly created and persisted `Run` with copied checks.
+    /// - Throws: If the save fails.
+    @discardableResult
+    static func startRun(
+        on list: Checklist,
+        name: String? = nil,
+        withChecksFrom source: CompletedRun,
+        in context: ModelContext
+    ) throws -> Run {
+        let snapshot = source.snapshot
+        let liveItemIDs = Set((list.items ?? []).map(\.id))
+
+        let run = Run(checklist: list, name: name)
+        run.hiddenTagIDs = snapshot.hiddenTagIDs
+        context.insert(run)
+
+        for (itemID, state) in snapshot.checks where state == .complete {
+            // Skip snapshot rows whose underlying Item has since been deleted.
+            guard liveItemIDs.contains(itemID) else { continue }
+            let check = Check(itemID: itemID, state: .complete)
+            check.run = run
+            context.insert(check)
+        }
+
+        try context.save()
+        return run
+    }
+
     /// Renames a live `Run` and persists the change.
     ///
     /// Passing an empty string is treated as clearing the name (sets it to nil).

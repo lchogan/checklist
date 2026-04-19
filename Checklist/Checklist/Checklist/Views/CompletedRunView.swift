@@ -287,14 +287,20 @@ struct CompletedRunView: View {
 
     // MARK: - Fork CTA
 
-    /// "New run with checks from here" ghost pill at the bottom. Task 6.4 wires
-    /// the RunStore call; this scaffold dismisses back to the caller.
+    /// "New run with checks from here" ghost pill. Creates a new live Run
+    /// pre-filled with the snapshot's `.complete` checks via
+    /// `RunStore.startRun(on:name:withChecksFrom:in:)`. Dismisses after success
+    /// so the user lands back on ChecklistRunView where the new run is now
+    /// the primary live run.
     private var forkCTA: some View {
         VStack(alignment: .leading, spacing: 6) {
-            PillButton(title: "New run with checks from here", tone: .ghost, wide: true) {
-                // Wired in Task 6.4. Placeholder: dismiss.
-                dismiss()
-            }
+            PillButton(
+                title: "New run with checks from here",
+                tone: .ghost,
+                wide: true,
+                disabled: completedRun.checklist == nil
+            ) { commitFork() }
+
             Text("Creates a live run pre-filled with the same checks. This completed record stays unchanged.")
                 .font(.system(size: 12))
                 .foregroundColor(Theme.dim)
@@ -302,6 +308,20 @@ struct CompletedRunView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.top, Theme.Spacing.md)
+    }
+
+    /// Calls `RunStore.startRun(on:name:withChecksFrom:in:)` and dismisses on
+    /// success. The new run becomes the primary live run on the Checklist,
+    /// which is what ChecklistRunView's `ensureCurrentRun` will pick up.
+    private func commitFork() {
+        guard let list = completedRun.checklist else { return }
+        _ = try? RunStore.startRun(
+            on: list,
+            name: completedRun.name,
+            withChecksFrom: completedRun,
+            in: ctx
+        )
+        dismiss()
     }
 }
 
