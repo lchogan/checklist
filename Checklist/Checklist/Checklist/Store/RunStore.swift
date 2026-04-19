@@ -200,6 +200,34 @@ enum RunStore {
         try context.save()
     }
 
+    // MARK: - History management (Plan 4 §3f)
+
+    /// Permanently deletes every CompletedRun on the given checklist.
+    /// Live Runs and source Items are untouched.
+    ///
+    /// - Parameters:
+    ///   - list: The Checklist whose history to clear.
+    ///   - context: The `ModelContext` to delete from and save.
+    /// - Throws: If the fetch or save fails.
+    static func clearHistory(for list: Checklist, in context: ModelContext) throws {
+        let listID = list.id
+        let runs = try context.fetch(FetchDescriptor<CompletedRun>(
+            predicate: #Predicate<CompletedRun> { $0.checklist?.id == listID }
+        ))
+        for run in runs { context.delete(run) }
+        try context.save()
+    }
+
+    /// Permanently deletes every CompletedRun on every checklist.
+    ///
+    /// - Parameter context: The `ModelContext` to delete from and save.
+    /// - Throws: If the fetch or save fails.
+    static func clearAllHistory(in context: ModelContext) throws {
+        let all = try context.fetch(FetchDescriptor<CompletedRun>())
+        for run in all { context.delete(run) }
+        try context.save()
+    }
+
     // MARK: - View-only filters
 
     /// Toggles a tag's hidden/visible state within a run's view.

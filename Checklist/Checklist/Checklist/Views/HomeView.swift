@@ -86,6 +86,16 @@ struct HomeView: View {
             }
             .navigationDestination(for: TagsDestination.self) { _ in
                 TagsView()
+                    .environmentObject(entitlementManager)
+            }
+            .navigationDestination(for: SettingsDestination.self) { _ in
+                SettingsView(path: $path)
+                    .environmentObject(entitlementManager)
+                    .environmentObject(storeKit)
+            }
+            .navigationDestination(for: CategoriesDestination.self) { _ in
+                CategoriesView()
+                    .environmentObject(entitlementManager)
             }
             .sheet(isPresented: $showCreateSheet) {
                 CreateChecklistSheet()
@@ -101,7 +111,7 @@ struct HomeView: View {
     /// Top navigation bar: theme/settings icon on left, add-checklist button on right.
     private var topBar: some View {
         TopBar(
-            left: { IconButton(iconName: "sparkle") {} },   // sun/theme — no-op
+            left: { IconButton(iconName: "sparkle") { path.append(SettingsDestination.root) } },
             right: { IconButton(iconName: "plus", solid: true) { tapCreateList() } }
         )
     }
