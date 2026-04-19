@@ -95,6 +95,9 @@ struct ChecklistRunView: View {
         } message: { _ in
             Text("This also removes any checks on this item. Runs already saved to history are untouched.")
         }
+        .sheet(isPresented: $showMenu) {
+            ChecklistMenuSheet(checklist: checklist, currentRun: currentRun)
+        }
         .sheet(isPresented: $showAddItem) {
             AddItemInline(checklist: checklist)
         }
