@@ -35,6 +35,9 @@ struct ChecklistRunView: View {
     @State private var showDiscardConfirm = false
     @State private var showRunChooser = false
     @State private var showStartRunSheet = false
+    // Task 5.7: swipe-to-delete state
+    @State private var pendingDelete: Item? = nil
+    @State private var showDeleteWarning = false
 
     /// The current live Run resolved from `currentRunID`. Nil when no run is active.
     private var currentRun: Run? {
@@ -52,27 +55,46 @@ struct ChecklistRunView: View {
             Theme.backgroundGradient.ignoresSafeArea()
             Theme.bg.ignoresSafeArea()
 
+            // Task 5.7: List is its own scroller, so the outer ScrollView is
+            // removed. Fixed sections (topBar, headerBlock, tagChipBar,
+            // progressRow) sit above; itemsSection provides the scrollable body.
             VStack(spacing: 0) {
                 topBar
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        headerBlock
-                        tagChipBar
-                        progressRow
-                        // Body fills in across Tasks 5.3 through 5.13.
-                        if sortedItems.isEmpty {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    headerBlock
+                    tagChipBar
+                    progressRow
+                }
+                .padding(.top, Theme.Spacing.md)
+
+                if sortedItems.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
                             emptyItemsBody
-                        } else {
-                            itemsSection
+                            Spacer(minLength: 60)
                         }
-                        Spacer(minLength: 60)
+                        .padding(.top, Theme.Spacing.md)
                     }
-                    .padding(.top, Theme.Spacing.md)
+                } else {
+                    itemsSection
                 }
             }
         }
         .navigationBarBackButtonHidden(true)
         .onAppear { ensureCurrentRun() }
+        // Task 5.7: multi-run delete warning alert
+        .alert("Delete '\(pendingDelete?.text ?? "item")'?",
+               isPresented: $showDeleteWarning,
+               presenting: pendingDelete) { item in
+            Button("Delete from \(checklist.runs?.count ?? 0) live runs",
+                   role: .destructive) { commitDelete(item) }
+            Button("Cancel", role: .cancel) {
+                pendingDelete = nil
+                showDeleteWarning = false
+            }
+        } message: { _ in
+            Text("This also removes any checks on this item. Runs already saved to history are untouched.")
+        }
     }
 
     // MARK: - Sections
@@ -179,12 +201,14 @@ struct ChecklistRunView: View {
             .padding(.horizontal, Theme.Spacing.xl)
     }
 
-    // MARK: - Items section (Task 5.3)
+    // MARK: - Items section (Task 5.3 + 5.7)
 
-    /// Renders all items as ItemRows plus a trailing AddItemRowStub.
-    /// Check toggling wired to handleToggleCheck; body tap opens ItemEditInline in Task 5.9.
+    /// Renders all items as ItemRows inside a `List` (required for `.swipeActions`),
+    /// plus a trailing AddItemRowStub. Check toggling wired to handleToggleCheck;
+    /// body tap opens ItemEditInline in Task 5.9. Swipe right = complete (toggle),
+    /// swipe left = delete (with multi-run warning when ≥2 live runs).
     private var itemsSection: some View {
-        LazyVStack(spacing: Theme.Spacing.xs) {
+        List {
             ForEach(sortedItems) { item in
                 ItemRow(
                     text: item.text,
@@ -193,10 +217,61 @@ struct ChecklistRunView: View {
                     onToggleCheck: { handleToggleCheck(item) },
                     onTapBody:     { editingItem = item }
                 )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        handleToggleCheck(item)
+                    } label: {
+                        Label("Complete", systemImage: "checkmark")
+                    }
+                    .tint(Theme.emerald)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        attemptDelete(item)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
+            // Add-item stub lives inside the List so it scrolls with items.
             AddItemRowStub { showAddItem = true }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .frame(minHeight: CGFloat(sortedItems.count + 1) * 58)
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Delete helpers (Task 5.7)
+
+    /// Attempts to delete an item. Shows a warning alert when ≥2 live runs
+    /// exist, because the deletion affects check records across all of them.
+    /// Deletes silently when only one (or zero) live runs exist.
+    ///
+    /// - Parameter item: The item the user swiped to delete.
+    private func attemptDelete(_ item: Item) {
+        let liveRuns = checklist.runs?.count ?? 0
+        if liveRuns >= 2 {
+            pendingDelete = item
+            showDeleteWarning = true
+        } else {
+            commitDelete(item)
+        }
+    }
+
+    /// Executes the item deletion via ChecklistStore and resets pending-delete state.
+    ///
+    /// - Parameter item: The item to permanently delete.
+    private func commitDelete(_ item: Item) {
+        try? ChecklistStore.deleteItem(item, in: ctx)
+        pendingDelete = nil
+        showDeleteWarning = false
     }
 
     // MARK: - Check toggling (Task 5.4)
