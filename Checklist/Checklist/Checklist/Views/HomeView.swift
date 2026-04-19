@@ -28,6 +28,8 @@ struct HomeView: View {
     private var checklists: [Checklist]
     @Query(sort: [SortDescriptor(\ChecklistCategory.sortKey, order: .forward)])
     private var categories: [ChecklistCategory]
+    @Query private var tags: [Tag]
+    @Query private var completedRuns: [CompletedRun]
 
     @State private var selectedCategoryID: UUID? = nil  // nil = "All"
     @State private var showCreateSheet = false
@@ -50,6 +52,11 @@ struct HomeView: View {
                                 )
                             }
                             cardsSection
+                            SummaryCardsRow(
+                                tagCount: tags.count,
+                                historyCount: completedRuns.count
+                            )
+                            .padding(.top, Theme.Spacing.md)
                             Spacer(minLength: 0)
                         }
                         .padding(.top, Theme.Spacing.md)
