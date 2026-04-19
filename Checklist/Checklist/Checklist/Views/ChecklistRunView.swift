@@ -61,9 +61,7 @@ struct ChecklistRunView: View {
                         if sortedItems.isEmpty {
                             emptyItemsBody
                         } else {
-                            Text("Items list coming in Task 5.3")
-                                .foregroundColor(Theme.dim)
-                                .padding(.horizontal, Theme.Spacing.xl)
+                            itemsSection
                         }
                         Spacer(minLength: 60)
                     }
@@ -114,6 +112,45 @@ struct ChecklistRunView: View {
     private var emptyItemsBody: some View {
         AddItemRowStub { showAddItem = true }
             .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Items section (Task 5.3)
+
+    /// Renders all items as ItemRows plus a trailing AddItemRowStub.
+    /// Check toggling is wired in Task 5.4; body tap opens ItemEditInline in Task 5.9.
+    private var itemsSection: some View {
+        LazyVStack(spacing: Theme.Spacing.xs) {
+            ForEach(sortedItems) { item in
+                ItemRow(
+                    text: item.text,
+                    tags: tagTuples(for: item),
+                    display: display(for: item),
+                    onToggleCheck: { /* Task 5.4 */ },
+                    onTapBody:     { editingItem = item }
+                )
+            }
+            AddItemRowStub { showAddItem = true }
+        }
+        .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    /// Derives the `ItemRow.Display` state for an item from the current run's
+    /// checks. Returns `.incomplete` when there is no run or no check record.
+    private func display(for item: Item) -> ItemRow.Display {
+        guard let run = currentRun,
+              let check = (run.checks ?? []).first(where: { $0.itemID == item.id })
+        else { return .incomplete }
+        switch check.state {
+        case .complete: return .complete
+        case .ignored:  return .ignored
+        }
+    }
+
+    /// Maps a SwiftData `Item`'s `Tag` relationships into the plain-value tuple
+    /// array expected by `ItemRow`. Avoids passing SwiftData objects into a view
+    /// that should not own a model reference.
+    private func tagTuples(for item: Item) -> [(name: String, iconName: String, colorHue: Double)] {
+        (item.tags ?? []).map { (name: $0.name, iconName: $0.iconName, colorHue: $0.colorHue) }
     }
 
     // MARK: - Current-run management
