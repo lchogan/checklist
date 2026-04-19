@@ -43,6 +43,12 @@ struct HomeView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                             titleBlock
+                            if !categories.isEmpty {
+                                CategoryFilterChipsView(
+                                    categories: categories,
+                                    selectedCategoryID: $selectedCategoryID
+                                )
+                            }
                             cardsSection
                             Spacer(minLength: 0)
                         }
@@ -188,4 +194,21 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Theme.Spacing.xl)
     }
+}
+
+// MARK: - Previews
+
+#Preview("Home — seeded") {
+    let container = try! SeedStore.container(for: .seededMulti)
+    return HomeView().modelContainer(container)
+}
+
+#Preview("Home — empty") {
+    let container = try! SeedStore.container(for: .empty)
+    return HomeView().modelContainer(container)
+}
+
+#Preview("Home — one list") {
+    let container = try! SeedStore.container(for: .oneList)
+    return HomeView().modelContainer(container)
 }
