@@ -21,8 +21,12 @@ struct HistoryView: View {
     @Environment(\.modelContext) private var ctx
     @Environment(\.dismiss) private var dismiss
 
-    /// The feed scope — global or per-checklist.
+    /// Initial scope supplied by the caller. Used as the seed value for
+    /// `activeScope`, which the scope chips rewrite when tapped.
     let scope: HistoryScope
+
+    /// Mutable scope. Defaults to `scope` on appear; updated by chip taps.
+    @State private var activeScope: HistoryScope = .allLists
 
     /// Query over all completed runs, reverse-chrono by completedAt. Scope
     /// and state filtering are applied in `filteredRuns` so @Query stays
@@ -69,6 +73,9 @@ struct HistoryView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            activeScope = scope
+        }
     }
 
     // MARK: - Top bar
@@ -103,7 +110,7 @@ struct HistoryView: View {
 
     /// Eyebrow: "ALL RUNS" for global, "<LIST NAME> · RUNS" for per-list.
     private var eyebrowText: String {
-        guard let id = scope.checklistID,
+        guard let id = activeScope.checklistID,
               let name = checklists.first(where: { $0.id == id })?.name else {
             return "ALL RUNS"
         }
@@ -121,51 +128,66 @@ struct HistoryView: View {
         return "\(runs.count) run\(runs.count == 1 ? "" : "s") · \(itemsChecked) items checked"
     }
 
-    // MARK: - Scope chips (Task 6.7 populates per-list chips; 6.5 just shows "All lists")
+    // MARK: - Scope chips
 
     /// Horizontal chip row letting the user switch between the global feed and
-    /// each individual checklist. Placeholder scaffold in Task 6.5 — the chips
-    /// are non-interactive here; Task 6.7 wires them to update `scope`.
+    /// each individual checklist. Hidden when the user entered via a
+    /// single-list scope (capture 23) — the header eyebrow already communicates
+    /// the scope.
+    @ViewBuilder
     private var scopeChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.xs) {
-                scopeChip(title: "All lists", isSelected: scope.checklistID == nil)
-                ForEach(checklists) { list in
-                    scopeChip(
-                        title: list.name,
-                        isSelected: scope.checklistID == list.id
-                    )
+        if scope.checklistID == nil {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    scopeChip(title: "All lists", isSelected: activeScope.checklistID == nil) {
+                        activeScope = .allLists
+                    }
+                    ForEach(checklists) { list in
+                        scopeChip(
+                            title: list.name,
+                            isSelected: activeScope.checklistID == list.id
+                        ) {
+                            activeScope = HistoryScope(checklistID: list.id)
+                        }
+                    }
                 }
+                .padding(.horizontal, Theme.Spacing.xl)
             }
-            .padding(.horizontal, Theme.Spacing.xl)
         }
     }
 
-    /// Single scope chip — gradient fill when selected; ghost otherwise. Non-
-    /// interactive in Task 6.5 (the view reads `scope` from init).
-    private func scopeChip(title: String, isSelected: Bool) -> some View {
-        Text(title)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(isSelected ? .white : Theme.text)
-            .padding(.horizontal, 14).padding(.vertical, 7)
-            .background(
-                Group {
-                    if isSelected {
-                        Capsule().fill(
-                            LinearGradient(
-                                colors: [Theme.amethyst, Theme.sapphire.opacity(0.85)],
-                                startPoint: .leading,
-                                endPoint: .trailing
+    /// Single scope chip — gradient fill when selected; ghost otherwise.
+    /// Calls `action` on tap.
+    private func scopeChip(
+        title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(isSelected ? .white : Theme.text)
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(
+                    Group {
+                        if isSelected {
+                            Capsule().fill(
+                                LinearGradient(
+                                    colors: [Theme.amethyst, Theme.sapphire.opacity(0.85)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                    } else {
-                        Capsule().fill(Color.white.opacity(0.05))
+                        } else {
+                            Capsule().fill(Color.white.opacity(0.05))
+                        }
                     }
-                }
-            )
-            .overlay(
-                Capsule().stroke(isSelected ? Color.clear : Theme.border, lineWidth: 1)
-            )
+                )
+                .overlay(
+                    Capsule().stroke(isSelected ? Color.clear : Theme.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - State chips (All / Complete / Partial) — wired in Task 6.6
@@ -325,7 +347,7 @@ struct HistoryView: View {
 
     /// Runs reduced to the `scope` only (checklist-scoped when non-nil).
     private var scopedRuns: [CompletedRun] {
-        guard let id = scope.checklistID else { return allRuns }
+        guard let id = activeScope.checklistID else { return allRuns }
         return allRuns.filter { $0.checklist?.id == id }
     }
 
