@@ -5,23 +5,20 @@ import SwiftData
 struct ChecklistApp: App {
     /// EntitlementManager is created first so StoreKitManager can reference it.
     @StateObject private var entitlementManager = EntitlementManager()
-    
+
     var body: some Scene {
         WindowGroup {
-            // AppRoot wires StoreKitManager to EntitlementManager and injects both
-            // into the environment before any view that might need them.
             AppRoot(entitlementManager: entitlementManager)
         }
     }
 }
 
-/// Thin wrapper that creates StoreKitManager (which needs EntitlementManager)
-/// and provides both as environment objects.
+/// Wires StoreKitManager to EntitlementManager and boots the SwiftData container.
 private struct AppRoot: View {
     let entitlementManager: EntitlementManager
     @StateObject private var storeKit: StoreKitManager
     @State private var modelContainer: ModelContainer?
-    
+
     init(entitlementManager: EntitlementManager) {
         self.entitlementManager = entitlementManager
         _storeKit = StateObject(
@@ -32,60 +29,45 @@ private struct AppRoot: View {
     var body: some View {
         Group {
             if let container = modelContainer {
-                ChecklistListView()
+                ContentView()
                     .environmentObject(entitlementManager)
                     .environmentObject(storeKit)
                     .modelContainer(container)
             } else {
-                ProgressView("Loading...")
+                ProgressView("Loading…")
             }
         }
-        .onAppear {
-            setupModelContainer()
-        }
-        .onChange(of: entitlementManager.isPremium) { oldValue, newValue in
-            // When premium status changes, reconfigure the container
-            if oldValue != newValue {
-                setupModelContainer()
-            }
-        }
+        .onAppear { setupModelContainer() }
+        .onChange(of: entitlementManager.isPremium) { _, _ in setupModelContainer() }
     }
-    
+
     private func setupModelContainer() {
         do {
-            let schema = Schema([
-                Checklist.self,
-                ChecklistItem.self,
-                Tag.self,
-                ChecklistCategory.self
-            ])
-            
-            let configuration: ModelConfiguration
-            
-            if entitlementManager.isPremium {
-                // Premium: Use CloudKit sync
-                configuration = ModelConfiguration(
-                    schema: schema,
-                    isStoredInMemoryOnly: false,
-                    allowsSave: true,
-                    cloudKitDatabase: .automatic
-                )
-            } else {
-                // Free: Local storage only
-                configuration = ModelConfiguration(
-                    schema: schema,
-                    isStoredInMemoryOnly: false,
-                    allowsSave: true,
-                    cloudKitDatabase: .none
-                )
-            }
-            
-            modelContainer = try ModelContainer(
-                for: schema,
-                configurations: configuration
+            // Phase 1 will add real models. For Phase 0 the schema is empty.
+            let schema = Schema([])
+            let configuration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                allowsSave: true,
+                cloudKitDatabase: entitlementManager.isPremium ? .automatic : .none
             )
+            modelContainer = try ModelContainer(for: schema, configurations: configuration)
         } catch {
             print("Failed to create ModelContainer: \(error)")
         }
+    }
+}
+
+/// Temporary placeholder until Phase 4 adds HomeView.
+private struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Checklist")
+                .font(.largeTitle.bold())
+            Text("Foundation phase — UI coming in Plan 2.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
     }
 }
