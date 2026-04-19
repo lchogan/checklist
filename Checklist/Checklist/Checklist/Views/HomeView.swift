@@ -64,9 +64,7 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showCreateSheet) {
-                // CreateChecklistSheet placeholder — real in Task 4.5
-                Text("Create sheet placeholder")
-                    .presentationDetents([.medium])
+                CreateChecklistSheet()
             }
         }
     }
