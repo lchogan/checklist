@@ -38,7 +38,7 @@ private struct AppRoot: View {
             }
         }
         .onAppear { setupModelContainer() }
-        .onChange(of: entitlementManager.isPremium) { _, _ in setupModelContainer() }
+        .onChange(of: entitlementManager.limits.cloudKitSync) { _, _ in setupModelContainer() }
     }
 
     private func setupModelContainer() {
@@ -60,7 +60,7 @@ private struct AppRoot: View {
                 schema: schema,
                 isStoredInMemoryOnly: false,
                 allowsSave: true,
-                cloudKitDatabase: entitlementManager.isPremium ? .automatic : .none
+                cloudKitDatabase: entitlementManager.limits.cloudKitSync ? .automatic : .none
             )
             modelContainer = try ModelContainer(for: schema, configurations: configuration)
         } catch {

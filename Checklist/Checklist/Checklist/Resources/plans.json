@@ -1,0 +1,46 @@
+{
+  "plans": [
+    {
+      "id": "free",
+      "displayName": "Free",
+      "productID": null,
+      "limits": {
+        "maxChecklists": 1,
+        "maxItemsPerChecklist": 25,
+        "maxLiveRunsPerChecklist": 1,
+        "maxTotalRuns": null,
+        "maxTags": 3,
+        "maxCategories": 0,
+        "cloudKitSync": false
+      }
+    },
+    {
+      "id": "plus_monthly",
+      "displayName": "Checklist Plus",
+      "productID": "com.checklist.premium.monthly",
+      "limits": {
+        "maxChecklists": null,
+        "maxItemsPerChecklist": null,
+        "maxLiveRunsPerChecklist": null,
+        "maxTotalRuns": null,
+        "maxTags": null,
+        "maxCategories": null,
+        "cloudKitSync": true
+      }
+    },
+    {
+      "id": "plus_annual",
+      "displayName": "Checklist Plus",
+      "productID": "com.checklist.premium.annual",
+      "limits": {
+        "maxChecklists": null,
+        "maxItemsPerChecklist": null,
+        "maxLiveRunsPerChecklist": null,
+        "maxTotalRuns": null,
+        "maxTags": null,
+        "maxCategories": null,
+        "cloudKitSync": true
+      }
+    }
+  ]
+}
