@@ -28,6 +28,9 @@ import SwiftData
 struct ChecklistRunView: View {
     @Environment(\.modelContext) private var ctx
     let checklist: Checklist
+    /// NavigationPath binding owned by HomeView. Used by sheets + strip rows
+    /// that need to request a push after dismissing themselves.
+    @Binding var path: NavigationPath
 
     @State private var currentRunID: UUID? = nil
     @State private var showMenu = false
@@ -352,10 +355,14 @@ struct ChecklistRunView: View {
             } footer: {
                 // Task 5.13: PreviousRunsStrip as a List footer so it scrolls
                 // with the items and is never pushed off-screen on long lists.
+                // Task 6.2: tapping a row now pushes CompletedRunView.
                 if currentRun == nil, !completedRunsSorted.isEmpty {
-                    PreviousRunsStrip(completedRuns: Array(completedRunsSorted.prefix(5)))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    PreviousRunsStrip(
+                        completedRuns: Array(completedRunsSorted.prefix(5)),
+                        onTap: { run in path.append(run) }
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             }
         }
@@ -559,8 +566,10 @@ private struct AddItemRowStub: View {
     // Remove all items so the empty-items body is exercised (capture 11).
     for item in list.items ?? [] { ctx.delete(item) }
     try! ctx.save()
-    return NavigationStack { ChecklistRunView(checklist: list) }
-        .modelContainer(container)
+    return NavigationStack {
+        ChecklistRunView(checklist: list, path: .constant(NavigationPath()))
+    }
+    .modelContainer(container)
 }
 
 #Preview("Seeded (Packing List)") {
@@ -569,8 +578,10 @@ private struct AddItemRowStub: View {
     let lists = try! ctx.fetch(FetchDescriptor<Checklist>())
     // Prefer the seeded "Packing List"; fall back to the first available checklist.
     let list = lists.first(where: { $0.name == "Packing List" }) ?? lists.first!
-    return NavigationStack { ChecklistRunView(checklist: list) }
-        .modelContainer(container)
+    return NavigationStack {
+        ChecklistRunView(checklist: list, path: .constant(NavigationPath()))
+    }
+    .modelContainer(container)
 }
 
 /// Task 5.14 verification: Gym Bag with 3-of-4 items complete, action row
@@ -579,6 +590,8 @@ private struct AddItemRowStub: View {
     let container = try! SeedStore.container(for: .nearCompleteRun)
     let ctx = ModelContext(container)
     let list = try! ctx.fetch(FetchDescriptor<Checklist>()).first(where: { $0.name == "Gym Bag" })!
-    return NavigationStack { ChecklistRunView(checklist: list) }
-        .modelContainer(container)
+    return NavigationStack {
+        ChecklistRunView(checklist: list, path: .constant(NavigationPath()))
+    }
+    .modelContainer(container)
 }

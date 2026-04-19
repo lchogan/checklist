@@ -66,7 +66,10 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(for: Checklist.self) { list in
-                ChecklistRunView(checklist: list)
+                ChecklistRunView(checklist: list, path: $path)
+            }
+            .navigationDestination(for: CompletedRun.self) { run in
+                CompletedRunView(completedRun: run)
             }
             .sheet(isPresented: $showCreateSheet) {
                 CreateChecklistSheet()

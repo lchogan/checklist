@@ -3,15 +3,16 @@
 ///   shown when no live run is active (the "no-current-run" state, capture 12).
 /// Dependencies: SwiftUI, CompletedRun, Theme, GemIcons, SectionLabel.
 /// Key concepts:
-///   - Tapping a row is a placeholder action (CompletedRunView deferred to Plan 3).
+///   - Tapping a row invokes `onTap(run)`; ChecklistRunView wires it to push
+///     CompletedRunView on the NavigationPath.
 ///   - Duration is computed from startedAt → completedAt on each CompletedRun.
 ///   - Subtitle counts complete items from the frozen snapshot (not the live checklist).
 
 import SwiftUI
 
 /// Read-only strip showing the most recent completed runs for a checklist.
-/// Tapping a row navigates to CompletedRunView (not implemented in Plan 2;
-/// placeholder action).
+/// Tapping a row invokes `onTap(run)`; the parent view (ChecklistRunView)
+/// appends the tapped `CompletedRun` to the root NavigationPath.
 struct PreviousRunsStrip: View {
     let completedRuns: [CompletedRun]
     var onTap: (CompletedRun) -> Void = { _ in }
