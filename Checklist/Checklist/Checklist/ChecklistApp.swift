@@ -45,13 +45,13 @@ private struct AppRoot: View {
         do {
             // Phase 1 models. Wired here so the app's schema matches the binary's
             // @Model type registrations — avoids loadIssueModelContainer in tests.
-            // [VERIFY] Add Check.self once Task 1.5 stub is in place.
             let schema = Schema([
                 ChecklistCategory.self,
                 Tag.self,
                 Checklist.self,
                 Item.self,
                 Run.self,
+                Check.self,
                 CompletedRun.self,
             ])
             let configuration = ModelConfiguration(
