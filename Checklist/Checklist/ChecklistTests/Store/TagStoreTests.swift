@@ -72,6 +72,30 @@ final class TagStoreTests: XCTestCase {
                        "CompletedRun snapshot must remain frozen even after Tag delete")
     }
 
+    /// Verifies that delete() removes the tag from items across multiple checklists,
+    /// catching any silent misses that FetchDescriptor<Item>() faulting could cause.
+    func test_delete_removes_tag_from_all_items_across_checklists() throws {
+        let ctx = try makeContext()
+        let beach = try TagStore.create(name: "Beach", in: ctx)
+
+        // Two checklists, each with an item tagged "beach"
+        let list1 = Checklist(name: "Trip A"); ctx.insert(list1)
+        let item1 = Item(text: "Sandals"); item1.checklist = list1; item1.tags = [beach]
+        ctx.insert(item1)
+
+        let list2 = Checklist(name: "Trip B"); ctx.insert(list2)
+        let item2 = Item(text: "Sunscreen"); item2.checklist = list2; item2.tags = [beach]
+        ctx.insert(item2)
+
+        try ctx.save()
+
+        try TagStore.delete(beach, in: ctx)
+
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<Tag>()).count, 0, "Tag deleted")
+        XCTAssertEqual(item1.tags?.count ?? 0, 0, "item1 should have beach tag removed")
+        XCTAssertEqual(item2.tags?.count ?? 0, 0, "item2 should have beach tag removed")
+    }
+
     // MARK: - Update
 
     /// Verifies that update() patches only the fields that are provided.

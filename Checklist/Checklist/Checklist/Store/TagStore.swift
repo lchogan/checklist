@@ -134,6 +134,10 @@ enum TagStore {
         // the many-to-many Item.tags relationship (which has no explicit inverse).
         // All Checklists are fetched; their items relationships are already tracked
         // in the context identity map, so tag membership reads correctly.
+        //
+        // Items with checklist == nil are excluded from the count. In normal operation
+        // this is safe: Checklist.items uses a cascade delete rule, so any Item without
+        // a Checklist is already an orphan awaiting GC and will never appear in the UI.
         let tagID = tag.id
         let lists = (try? context.fetch(FetchDescriptor<Checklist>())) ?? []
         return lists.reduce(0) { count, list in
