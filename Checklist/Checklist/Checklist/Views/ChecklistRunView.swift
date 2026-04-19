@@ -98,6 +98,9 @@ struct ChecklistRunView: View {
         .sheet(isPresented: $showAddItem) {
             AddItemInline(checklist: checklist)
         }
+        .sheet(item: $editingItem) { item in
+            ItemEditInline(item: item, currentRun: currentRun)
+        }
     }
 
     // MARK: - Sections
