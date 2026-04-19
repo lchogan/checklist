@@ -4,14 +4,15 @@
 /// Dependencies: SwiftUI, SwiftData, Checklist model, ChecklistCategory model,
 ///   Theme (Design tokens), TopBar, IconButton (Design/Components/TopBar.swift),
 ///   ChecklistCard, CategoryFilterChipsView, SummaryCardsRow, RunProgress.
-///   CreateChecklistSheet is added in a later task.
+///   CreateChecklistSheet (Sheets/CreateChecklistSheet.swift), ChecklistRunView.
 /// Key concepts:
 ///   - @Query drives the checklist grid and category list; both are sorted by sortKey.
 ///   - @State drives transient UI: selectedCategoryID filter, sheet presentation,
-///     and navigation path.
+///     and navigation path (path: NavigationPath).
 ///   - topBar is composed from the reusable TopBar + IconButton design components.
 ///   - eyebrowText reflects live-run count per §7 translation rule.
 ///   - filteredChecklists narrows the grid when a category chip is selected.
+///   - Tapping a ChecklistCard appends the Checklist to path, pushing ChecklistRunView.
 
 import SwiftUI
 import SwiftData
@@ -33,9 +34,10 @@ struct HomeView: View {
 
     @State private var selectedCategoryID: UUID? = nil  // nil = "All"
     @State private var showCreateSheet = false
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 Theme.backgroundGradient.ignoresSafeArea()
                 Theme.bg.ignoresSafeArea()  // solid base under the radial gradient
@@ -57,11 +59,14 @@ struct HomeView: View {
                                 historyCount: completedRuns.count
                             )
                             .padding(.top, Theme.Spacing.md)
-                            Spacer(minLength: 0)
+                            Spacer(minLength: 40)
                         }
                         .padding(.top, Theme.Spacing.md)
                     }
                 }
+            }
+            .navigationDestination(for: Checklist.self) { list in
+                ChecklistRunView(checklist: list)
             }
             .sheet(isPresented: $showCreateSheet) {
                 CreateChecklistSheet()
@@ -148,7 +153,7 @@ struct HomeView: View {
             progress: (done: progress.done, total: progress.total),
             liveRunCount: list.runs?.count ?? 0
         ) {
-            // Navigation — wired in Task 4.7
+            path.append(list)
         }
     }
 
