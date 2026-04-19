@@ -117,7 +117,7 @@ struct ChecklistRunView: View {
     // MARK: - Items section (Task 5.3)
 
     /// Renders all items as ItemRows plus a trailing AddItemRowStub.
-    /// Check toggling is wired in Task 5.4; body tap opens ItemEditInline in Task 5.9.
+    /// Check toggling wired to handleToggleCheck; body tap opens ItemEditInline in Task 5.9.
     private var itemsSection: some View {
         LazyVStack(spacing: Theme.Spacing.xs) {
             ForEach(sortedItems) { item in
@@ -125,13 +125,36 @@ struct ChecklistRunView: View {
                     text: item.text,
                     tags: tagTuples(for: item),
                     display: display(for: item),
-                    onToggleCheck: { /* Task 5.4 */ },
+                    onToggleCheck: { handleToggleCheck(item) },
                     onTapBody:     { editingItem = item }
                 )
             }
             AddItemRowStub { showAddItem = true }
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Check toggling (Task 5.4)
+
+    /// Toggles the check state for an item on the current run. If no run
+    /// exists, auto-creates one first (per ARCHITECTURE §3e).
+    private func handleToggleCheck(_ item: Item) {
+        do {
+            let run = try currentRunOrCreate()
+            try RunStore.toggleCheck(run: run, itemID: item.id, in: ctx)
+        } catch {
+            // Surface via error banner later; for now log.
+            print("toggleCheck failed: \(error)")
+        }
+    }
+
+    /// Returns the current Run. If none exists, auto-creates one (§3e) and
+    /// updates currentRunID.
+    private func currentRunOrCreate() throws -> Run {
+        if let run = currentRun { return run }
+        let run = try RunStore.startRun(on: checklist, in: ctx)
+        currentRunID = run.id
+        return run
     }
 
     /// Derives the `ItemRow.Display` state for an item from the current run's
