@@ -43,8 +43,10 @@ private struct AppRoot: View {
 
     private func setupModelContainer() {
         do {
-            // Phase 1 models. Wired here so the app's schema matches the binary's
-            // @Model type registrations — avoids loadIssueModelContainer in tests.
+            // Phase 1 complete schema (Task 1.8). All 7 @Model types listed so
+            // the app container matches the binary — prevents loadIssueModelContainer
+            // in unit tests (CloudKit entitlement requires cloudKitDatabase: .none
+            // for in-memory containers; see TestHelpers.makeTestConfig()).
             let schema = Schema([
                 ChecklistCategory.self,
                 Tag.self,
