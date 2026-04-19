@@ -1,46 +1,198 @@
 /// ChecklistRunView.swift
-/// Purpose: PLACEHOLDER (Task 4.6). Full implementation lands in Phase 5.
-///   Renders the checklist name, category eyebrow, and item count so that
-///   HomeView's NavigationStack push can be verified end-to-end before Phase 5.
-/// Dependencies: SwiftUI, SwiftData, Checklist model, Theme.
+/// Purpose: Main list-run view. Hosts the item rows, progress bar, tag hide
+///   chips, add-item inline, menu sheet, and completion sheets. Items live on
+///   the Checklist; per-run state (checks, hiddenTagIDs) lives on the current Run.
+/// Dependencies: SwiftUI, SwiftData, Checklist/Run/Item models, Theme,
+///   TopBar, BackButton, AddItemRowStub.
 /// Key concepts:
-///   - Receives a Checklist via a let property from the navigation destination.
-///   - Uses Theme.bg as the background to match the app's dark violet design language.
-///   - The toolbar item is a no-op placeholder; the system NavigationStack supplies
-///     the back chevron automatically.
+///   - Current-run selection: the earliest live Run (by startedAt) is the
+///     "current" one. If no live runs exist, certain interactions auto-create
+///     one (per ARCHITECTURE §3e).
+///   - `ensureCurrentRun()` is called on appear; it only selects, never creates.
+///   - The empty-items body shows a dashed AddItemRowStub (capture 11).
+///   - BackButton is private to this file; it wraps IconButton to match the
+///     circular-button design language.
 
 import SwiftUI
 import SwiftData
 
-/// PLACEHOLDER (Task 4.6). Full implementation lands in Phase 5. For now the
-/// view just renders the checklist's name and an item count so Home's
-/// navigation push is verifiable end-to-end.
+/// Main list-run view. Hosts the item rows, progress bar, tag hide chips,
+/// add-item inline, menu sheet, and completion sheets. Items live on the
+/// Checklist; per-run state (checks, hiddenTagIDs) lives on the current Run.
+///
+/// Current-run selection: the earliest live Run (by startedAt) is the
+/// "current" one. If no live runs exist, certain interactions auto-create
+/// one (per ARCHITECTURE §3e).
 struct ChecklistRunView: View {
-    /// The checklist being displayed. Passed in from the NavigationStack destination.
+    @Environment(\.modelContext) private var ctx
     let checklist: Checklist
+
+    @State private var currentRunID: UUID? = nil
+    @State private var showMenu = false
+    @State private var showAddItem = false
+    @State private var editingItem: Item? = nil
+    @State private var showCompletionSheet = false
+    @State private var showDiscardConfirm = false
+    @State private var showRunChooser = false
+    @State private var showStartRunSheet = false
+
+    /// The current live Run resolved from `currentRunID`. Nil when no run is active.
+    private var currentRun: Run? {
+        guard let id = currentRunID else { return nil }
+        return (checklist.runs ?? []).first(where: { $0.id == id })
+    }
+
+    /// Items on this checklist sorted by their `sortKey` for stable ordering.
+    private var sortedItems: [Item] {
+        (checklist.items ?? []).sorted { $0.sortKey < $1.sortKey }
+    }
 
     var body: some View {
         ZStack {
+            Theme.backgroundGradient.ignoresSafeArea()
             Theme.bg.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text(checklist.category?.name.uppercased() ?? "")
-                    .font(Theme.eyebrow())
-                    .tracking(2)
-                    .foregroundColor(Theme.dim)
-                Text(checklist.name)
-                    .font(Theme.display(size: 28))
-                    .foregroundColor(Theme.text)
-                Text("\(checklist.items?.count ?? 0) items · Phase-5 UI coming")
-                    .font(.system(size: 13))
-                    .foregroundColor(Theme.dim)
+
+            VStack(spacing: 0) {
+                topBar
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        headerBlock
+                        // Body fills in across Tasks 5.3 through 5.13.
+                        if sortedItems.isEmpty {
+                            emptyItemsBody
+                        } else {
+                            Text("Items list coming in Task 5.3")
+                                .foregroundColor(Theme.dim)
+                                .padding(.horizontal, Theme.Spacing.xl)
+                        }
+                        Spacer(minLength: 60)
+                    }
+                    .padding(.top, Theme.Spacing.md)
+                }
             }
-            .padding()
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                // System nav bar will supply the back chevron; nothing extra needed here.
-                EmptyView()
+        .navigationBarBackButtonHidden(true)
+        .onAppear { ensureCurrentRun() }
+    }
+
+    // MARK: - Sections
+
+    /// Top navigation bar: back chevron on the left, kebab menu on the right.
+    private var topBar: some View {
+        TopBar(
+            left: { BackButton() },
+            right: { IconButton(iconName: "more") { showMenu = true } }
+        )
+    }
+
+    /// Eyebrow (category · run name) + checklist name title block (capture 04).
+    @ViewBuilder
+    private var headerBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                if let cat = checklist.category?.name {
+                    Text(cat.uppercased())
+                        .foregroundColor(Theme.dim)
+                }
+                if let run = currentRun, let runName = run.name {
+                    Text("·").foregroundColor(Theme.dimmer)
+                    Text(runName.uppercased())
+                        .foregroundColor(Theme.citrine)
+                }
             }
+            .font(Theme.eyebrow())
+            .tracking(2)
+
+            Text(checklist.name)
+                .font(Theme.display(size: 30))
+                .foregroundColor(Theme.text)
+        }
+        .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    /// Shown when the checklist has no items (capture 11): a dashed "+ Add item" stub row.
+    private var emptyItemsBody: some View {
+        AddItemRowStub { showAddItem = true }
+            .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Current-run management
+
+    /// Selects the current Run per ARCHITECTURE §3e. Called on appear.
+    /// If multiple live runs exist, picks the earliest by startedAt — matching
+    /// the same "primary run" definition used on Home. Does NOT auto-create;
+    /// auto-creation happens on the first mutating interaction (Task 5.4).
+    private func ensureCurrentRun() {
+        let liveRuns = (checklist.runs ?? []).sorted(by: { $0.startedAt < $1.startedAt })
+        if let primary = liveRuns.first {
+            currentRunID = primary.id
+        } else {
+            // No live run — leave currentRunID nil so the "no current run"
+            // view state (capture 12) is reachable.
+            currentRunID = nil
         }
     }
+}
+
+// MARK: - Private supporting views
+
+/// System-back-style chevron rendered as an IconButton so the visual style
+/// matches the prototype's circular icon buttons.
+private struct BackButton: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        IconButton(iconName: "back") { dismiss() }
+    }
+}
+
+/// Temporary dashed "+ Add item" row. Replaced by the full AddItemInline in Task 5.8.
+private struct AddItemRowStub: View {
+    /// Called when the user taps the row.
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                GemIcons.image("plus")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(Theme.dim)
+                Text("Add item")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.dim)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.md)
+                    .stroke(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Empty items") {
+    let container = try! SeedStore.container(for: .oneList)
+    let ctx = ModelContext(container)
+    let lists = try! ctx.fetch(FetchDescriptor<Checklist>())
+    let list = lists.first!
+    // Remove all items so the empty-items body is exercised (capture 11).
+    for item in list.items ?? [] { ctx.delete(item) }
+    try! ctx.save()
+    return NavigationStack { ChecklistRunView(checklist: list) }
+        .modelContainer(container)
+}
+
+#Preview("Seeded (Packing List)") {
+    let container = try! SeedStore.container(for: .seededMulti)
+    let ctx = ModelContext(container)
+    let lists = try! ctx.fetch(FetchDescriptor<Checklist>())
+    // Prefer the seeded "Packing List"; fall back to the first available checklist.
+    let list = lists.first(where: { $0.name == "Packing List" }) ?? lists.first!
+    return NavigationStack { ChecklistRunView(checklist: list) }
+        .modelContainer(container)
 }
