@@ -4,9 +4,10 @@ import SwiftData
 
 final class TagTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
+        // cloudKitDatabase: .none is required — see TestHelpers.makeTestConfig().
         let container = try ModelContainer(
             for: Tag.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            configurations: makeTestConfig()
         )
         return ModelContext(container)
     }

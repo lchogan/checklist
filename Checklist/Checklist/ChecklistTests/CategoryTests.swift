@@ -9,8 +9,11 @@ import SwiftData
 // identical to the plan.
 final class CategoryTests: XCTestCase {
     private func makeInMemoryContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: ChecklistCategory.self, configurations: config)
+        // cloudKitDatabase: .none is required — see TestHelpers.makeTestConfig().
+        let container = try ModelContainer(
+            for: ChecklistCategory.self,
+            configurations: makeTestConfig()
+        )
         return ModelContext(container)
     }
 

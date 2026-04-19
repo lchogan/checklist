@@ -4,9 +4,11 @@ import SwiftData
 
 final class ChecklistModelTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
+        // cloudKitDatabase: .none is required — see TestHelpers.makeTestConfig().
         let container = try ModelContainer(
-            for: Checklist.self, ChecklistCategory.self, Item.self, Run.self, CompletedRun.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            for: Checklist.self, ChecklistCategory.self, Item.self, Tag.self,
+                Run.self, CompletedRun.self,
+            configurations: makeTestConfig()
         )
         return ModelContext(container)
     }

@@ -43,8 +43,17 @@ private struct AppRoot: View {
 
     private func setupModelContainer() {
         do {
-            // Phase 1 will add real models. For Phase 0 the schema is empty.
-            let schema = Schema([])
+            // Phase 1 models. Wired here so the app's schema matches the binary's
+            // @Model type registrations — avoids loadIssueModelContainer in tests.
+            // [VERIFY] Add Check.self once Task 1.5 stub is in place.
+            let schema = Schema([
+                ChecklistCategory.self,
+                Tag.self,
+                Checklist.self,
+                Item.self,
+                Run.self,
+                CompletedRun.self,
+            ])
             let configuration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
