@@ -7,6 +7,9 @@ struct HeroGem: View {
     var progress: Double = 1.0
     var size: CGFloat = 62
 
+    /// Driven by onAppear for the mint-in spring.
+    @State private var appeared = false
+
     var body: some View {
         ZStack {
             // Backdrop glow
@@ -36,6 +39,10 @@ struct HeroGem: View {
                 )
         }
         .frame(width: size * 1.4, height: size * 1.4)
+        .scaleEffect(appeared ? 1 : 0.6)
+        .opacity(appeared ? 1 : 0)
+        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: appeared)
+        .onAppear { appeared = true }
     }
 }
 

@@ -39,7 +39,7 @@ struct Facet: View {
         }
         .frame(width: size, height: size)
         .scaleEffect(checked ? 1.0 : 0.96)
-        .animation(.spring(response: 0.26, dampingFraction: 0.6), value: checked)
+        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: checked)
     }
 }
 

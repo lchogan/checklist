@@ -39,6 +39,20 @@ private struct AppRoot: View {
         }
         .onAppear { setupModelContainer() }
         .onChange(of: entitlementManager.limits.cloudKitSync) { _, _ in setupModelContainer() }
+        .onOpenURL { url in
+            #if DEBUG
+            if let fixture = FixtureRouter.fixture(from: url) {
+                loadFixture(fixture)
+            }
+            #endif
+        }
+    }
+
+    /// DEBUG-only: swaps the running container for a freshly-seeded one. Called
+    /// when a `checklist://seed/<name>` URL is opened.
+    private func loadFixture(_ fixture: SeedStore.Fixture) {
+        guard let container = try? SeedStore.container(for: fixture) else { return }
+        modelContainer = container
     }
 
     private func setupModelContainer() {
