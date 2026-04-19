@@ -566,3 +566,13 @@ private struct AddItemRowStub: View {
     return NavigationStack { ChecklistRunView(checklist: list) }
         .modelContainer(container)
 }
+
+/// Task 5.14 verification: Gym Bag with 3-of-4 items complete, action row
+/// visible (progress ~75%), no-complete auto-sheet (not all items done).
+#Preview("Near complete (Gym Bag)") {
+    let container = try! SeedStore.container(for: .nearCompleteRun)
+    let ctx = ModelContext(container)
+    let list = try! ctx.fetch(FetchDescriptor<Checklist>()).first(where: { $0.name == "Gym Bag" })!
+    return NavigationStack { ChecklistRunView(checklist: list) }
+        .modelContainer(container)
+}
