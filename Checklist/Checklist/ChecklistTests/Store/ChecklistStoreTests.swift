@@ -119,6 +119,67 @@ final class ChecklistStoreTests: XCTestCase {
         XCTAssertEqual(b.sortKey, 2)
     }
 
+    /// Renaming a checklist persists the new name.
+    func test_rename_updates_name() throws {
+        let ctx = try makeContext()
+        let list = try ChecklistStore.create(name: "Old", in: ctx)
+        try ChecklistStore.rename(list, to: "New", in: ctx)
+        XCTAssertEqual(list.name, "New")
+    }
+
+    /// setCategory assigns a category and can be cleared by passing nil.
+    func test_setCategory_assigns_and_clears() throws {
+        let ctx = try makeContext()
+        let travel = try CategoryStore.create(name: "Travel", in: ctx)
+        let list = try ChecklistStore.create(name: "Trip", in: ctx)
+
+        try ChecklistStore.setCategory(list, to: travel, in: ctx)
+        XCTAssertEqual(list.category?.id, travel.id)
+
+        try ChecklistStore.setCategory(list, to: nil, in: ctx)
+        XCTAssertNil(list.category)
+    }
+
+    /// renameItem updates the item's display text.
+    func test_renameItem_updates_text() throws {
+        let ctx = try makeContext()
+        let list = try ChecklistStore.create(name: "T", in: ctx)
+        let item = try ChecklistStore.addItem(text: "Old", to: list, in: ctx)
+        try ChecklistStore.renameItem(item, to: "New", in: ctx)
+        XCTAssertEqual(item.text, "New")
+    }
+
+    /// setItemTags replaces the full tag set on an item, including clearing it.
+    func test_setItemTags_replaces_tag_set() throws {
+        let ctx = try makeContext()
+        let tagA = try TagStore.create(name: "A", in: ctx)
+        let tagB = try TagStore.create(name: "B", in: ctx)
+        let list = try ChecklistStore.create(name: "T", in: ctx)
+        let item = try ChecklistStore.addItem(text: "X", to: list, tags: [tagA], in: ctx)
+
+        try ChecklistStore.setItemTags(item, to: [tagB], in: ctx)
+        XCTAssertEqual(item.tags?.count, 1)
+        XCTAssertEqual(item.tags?.first?.id, tagB.id)
+
+        try ChecklistStore.setItemTags(item, to: [], in: ctx)
+        XCTAssertEqual(item.tags?.count ?? 0, 0)
+    }
+
+    /// hasMultipleLiveRuns returns false for 0–1 runs and true for 2+.
+    func test_hasMultipleLiveRuns_thresholds() throws {
+        let ctx = try makeContext()
+        let list = try ChecklistStore.create(name: "T", in: ctx)
+        XCTAssertFalse(ChecklistStore.hasMultipleLiveRuns(for: list))
+
+        ctx.insert(Run(checklist: list))
+        try ctx.save()
+        XCTAssertFalse(ChecklistStore.hasMultipleLiveRuns(for: list))
+
+        ctx.insert(Run(checklist: list))
+        try ctx.save()
+        XCTAssertTrue(ChecklistStore.hasMultipleLiveRuns(for: list))
+    }
+
     /// Deleting an item that has no parent checklist deletes only that item and
     /// does not touch Check records belonging to unrelated checklists.
     func test_deleteItem_with_nil_checklist_deletes_only_item() throws {

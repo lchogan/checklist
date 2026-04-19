@@ -151,7 +151,7 @@ enum SeedStore {
 
         // Tags
         let beach = try TagStore.create(name: "Beach", iconName: "sun", colorHue: 85, in: ctx)
-        let snow = try TagStore.create(name: "Snow", iconName: "snowflake", colorHue: 250, in: ctx)
+        let snow = try TagStore.create(name: "Snow", iconName: "snow", colorHue: 250, in: ctx)
         let intl = try TagStore.create(name: "Intl", iconName: "plane", colorHue: 300, in: ctx)
 
         // Packing List — a travel checklist with tag-filtered items

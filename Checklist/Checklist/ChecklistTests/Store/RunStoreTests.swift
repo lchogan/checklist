@@ -157,4 +157,35 @@ final class RunStoreTests: XCTestCase {
 
         XCTAssertEqual(list.runs?.count, 2)
     }
+
+    /// Renames a live Run and persists the new name.
+    func test_rename_updates_run_name() throws {
+        let ctx = try makeContext()
+        let (list, _) = try seed(ctx)
+        let run = try RunStore.startRun(on: list, name: "Old", in: ctx)
+        try RunStore.rename(run, to: "New", in: ctx)
+        XCTAssertEqual(run.name, "New")
+    }
+
+    /// Renaming a Run to an empty string clears the name (sets it to nil).
+    func test_rename_empty_string_becomes_nil() throws {
+        let ctx = try makeContext()
+        let (list, _) = try seed(ctx)
+        let run = try RunStore.startRun(on: list, name: "Tokyo", in: ctx)
+        try RunStore.rename(run, to: "", in: ctx)
+        XCTAssertNil(run.name)
+    }
+
+    /// complete() throws StoreError.orphanedRun when the Run has no checklist.
+    func test_complete_throws_when_run_has_no_checklist() throws {
+        let ctx = try makeContext()
+        let (list, _) = try seed(ctx)
+        let run = try RunStore.startRun(on: list, in: ctx)
+        run.checklist = nil
+        try ctx.save()
+
+        XCTAssertThrowsError(try RunStore.complete(run, in: ctx)) { error in
+            XCTAssertTrue(error is StoreError, "expected StoreError.orphanedRun, got \(error)")
+        }
+    }
 }
