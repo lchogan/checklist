@@ -105,6 +105,9 @@ enum SeedStore {
                 for i in 1...5 {
                     let started = Calendar.current.date(byAdding: .day, value: -i, to: Date())!
                     let completed = CompletedRun(checklist: morning, name: nil, startedAt: started, completedAt: started)
+                    // NOTE: Throwaway Run has no checks, so the resulting snapshot.checks is empty.
+                    // Sufficient for fixtures that only need CompletedRun count; if future tests
+                    // assert on historical check state, seed the temp Run with checks first.
                     completed.snapshot = CompletedRunBuilder.snapshot(
                         for: Run(checklist: morning), checklist: morning
                     )

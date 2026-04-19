@@ -78,6 +78,6 @@ enum CategoryStore {
     /// - Throws: If the fetch fails.
     private static func nextSortKey(in context: ModelContext) throws -> Int {
         let descriptor = FetchDescriptor<ChecklistCategory>(sortBy: [SortDescriptor(\.sortKey, order: .reverse)])
-        return ((try? context.fetch(descriptor).first?.sortKey) ?? -1) + 1
+        return ((try context.fetch(descriptor)).first?.sortKey ?? -1) + 1
     }
 }
