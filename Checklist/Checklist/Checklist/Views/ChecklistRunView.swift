@@ -62,6 +62,7 @@ struct ChecklistRunView: View {
                 topBar
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     headerBlock
+                    multiRunPill
                     tagChipBar
                     progressRow
                 }
@@ -112,6 +113,18 @@ struct ChecklistRunView: View {
                 CompletionSheet(checklist: checklist, run: run)
             }
         }
+        .sheet(isPresented: $showRunChooser) {
+            RunChooserSheet(
+                checklist: checklist,
+                onSelect: { run in currentRunID = run.id },
+                onStartNew: { showStartRunSheet = true }
+            )
+        }
+        .sheet(isPresented: $showStartRunSheet) {
+            StartRunSheet(checklist: checklist) { run in
+                currentRunID = run.id
+            }
+        }
         .onChange(of: currentRun?.checks?.count ?? 0) { _, _ in
             maybeAutoPresentCompletion()
         }
@@ -150,6 +163,36 @@ struct ChecklistRunView: View {
                 .foregroundColor(Theme.text)
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Multi-run switcher pill (Task 5.12)
+
+    /// Pill button showing "N live runs ▾". Visible only when the checklist has
+    /// ≥2 live runs. Tapping opens RunChooserSheet so the user can switch the
+    /// active run or start a new one.
+    @ViewBuilder
+    private var multiRunPill: some View {
+        let count = checklist.runs?.count ?? 0
+        if count >= 2 {
+            Button {
+                showRunChooser = true
+            } label: {
+                HStack(spacing: 6) {
+                    GemIcons.image("stack")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("\(count) live runs")
+                        .font(.system(size: 12, weight: .semibold))
+                    GemIcons.image("down")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundColor(Theme.text)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(Capsule().fill(Color.white.opacity(0.06)))
+                .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, Theme.Spacing.xl)
+        }
     }
 
     // MARK: - Tag hide chip bar (Task 5.6)
