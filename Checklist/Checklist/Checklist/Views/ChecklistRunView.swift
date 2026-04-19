@@ -78,6 +78,9 @@ struct ChecklistRunView: View {
                 } else {
                     itemsSection
                 }
+
+                // Action row sits outside the List so it remains pinned below items.
+                actionRow
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -103,6 +106,14 @@ struct ChecklistRunView: View {
         }
         .sheet(item: $editingItem) { item in
             ItemEditInline(item: item, currentRun: currentRun)
+        }
+        .sheet(isPresented: $showCompletionSheet) {
+            if let run = currentRun {
+                CompletionSheet(checklist: checklist, run: run)
+            }
+        }
+        .onChange(of: currentRun?.checks?.count ?? 0) { _, _ in
+            maybeAutoPresentCompletion()
         }
     }
 
@@ -257,6 +268,38 @@ struct ChecklistRunView: View {
         .padding(.horizontal, Theme.Spacing.xl)
     }
 
+    // MARK: - Action row (Task 5.11)
+
+    /// Bottom action row: "Complete" pill (citrine when partial, emerald when all-done)
+    /// and "+ New run" ghost pill. Visible only when a live run exists.
+    ///
+    /// The Complete pill opens CompletionSheet; "+ New run" sets showStartRunSheet
+    /// (Task 5.12 wires the sheet itself).
+    private var actionRow: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            if let run = currentRun {
+                let progress = RunProgress.compute(
+                    items: sortedItems,
+                    checks: run.checks ?? [],
+                    hiddenTagIDs: run.hiddenTagIDs
+                )
+                let label = progress.done == progress.total && progress.total > 0
+                    ? "Complete"
+                    : "Complete · \(progress.done)/\(progress.total)"
+                PillButton(
+                    title: label,
+                    color: progress.done == progress.total ? Theme.emerald : Theme.citrine
+                ) { showCompletionSheet = true }
+
+                PillButton(title: "+ New run", tone: .ghost) {
+                    showStartRunSheet = true  // Task 5.12
+                }
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.xl)
+        .padding(.vertical, Theme.Spacing.sm)
+    }
+
     // MARK: - Delete helpers (Task 5.7)
 
     /// Attempts to delete an item. Shows a warning alert when ≥2 live runs
@@ -339,6 +382,23 @@ struct ChecklistRunView: View {
             // No live run — leave currentRunID nil so the "no current run"
             // view state (capture 12) is reachable.
             currentRunID = nil
+        }
+    }
+
+    /// Auto-presents CompletionSheet when all visible items on the current run
+    /// are checked. Called via onChange(of: currentRun?.checks?.count).
+    ///
+    /// Guard: only fires when progress.total > 0 (non-empty list) and
+    /// progress.done == progress.total (every visible item is complete).
+    private func maybeAutoPresentCompletion() {
+        guard let run = currentRun else { return }
+        let progress = RunProgress.compute(
+            items: sortedItems,
+            checks: run.checks ?? [],
+            hiddenTagIDs: run.hiddenTagIDs
+        )
+        if progress.total > 0, progress.done == progress.total {
+            showCompletionSheet = true
         }
     }
 }
