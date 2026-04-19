@@ -19,6 +19,7 @@ import SwiftData
 struct CreateChecklistSheet: View {
     @Environment(\.modelContext) private var ctx
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var entitlementManager: EntitlementManager
     @Query(sort: [SortDescriptor(\ChecklistCategory.sortKey, order: .forward)])
     private var categories: [ChecklistCategory]
 
@@ -26,6 +27,9 @@ struct CreateChecklistSheet: View {
     @State private var selectedCategoryID: UUID? = nil
     @State private var showNewCategoryInput = false
     @State private var newCategoryName: String = ""
+
+    @State private var paywallReason: GateDecision.Reason? = nil
+    @State private var showPaywall = false
 
     var body: some View {
         BottomSheet {
@@ -55,6 +59,24 @@ struct CreateChecklistSheet: View {
 
                 actionRow
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet(reason: paywallReason)
+        }
+    }
+
+    /// Gate + paywall for "+ New" category chip.
+    private func tapNewCategory() {
+        let decision = EntitlementGate.canCreateCategory(
+            current: categories.count,
+            limits: entitlementManager.limits
+        )
+        switch decision {
+        case .allowed:
+            showNewCategoryInput = true
+        case .blocked(let reason):
+            paywallReason = reason
+            showPaywall = true
         }
     }
 
@@ -88,7 +110,7 @@ struct CreateChecklistSheet: View {
     /// Dashed "+ New" pill that reveals the inline category name input.
     private var newChip: some View {
         Button {
-            showNewCategoryInput = true
+            tapNewCategory()
         } label: {
             Text("+ New")
                 .font(.system(size: 13, weight: .semibold))

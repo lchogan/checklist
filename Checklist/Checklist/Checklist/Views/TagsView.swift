@@ -18,6 +18,7 @@ import SwiftData
 struct TagsView: View {
     @Environment(\.modelContext) private var ctx
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var entitlementManager: EntitlementManager
     @Query(sort: [SortDescriptor(\Tag.sortKey, order: .forward)]) private var tags: [Tag]
 
     /// Nil = editor presented in create mode. Non-nil = editor in edit mode
@@ -29,6 +30,9 @@ struct TagsView: View {
     /// tag and `.sheet(isPresented:)` for new, so both entry points coexist
     /// cleanly.
     @State private var showNewEditor = false
+
+    @State private var paywallReason: GateDecision.Reason? = nil
+    @State private var showPaywall = false
 
     var body: some View {
         ZStack {
@@ -58,6 +62,9 @@ struct TagsView: View {
         .sheet(isPresented: $showNewEditor) {
             TagEditorSheet(mode: .new)
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet(reason: paywallReason)
+        }
     }
 
     // MARK: - Top bar
@@ -65,8 +72,23 @@ struct TagsView: View {
     private var topBar: some View {
         TopBar(
             left: { IconButton(iconName: "back") { dismiss() } },
-            right: { IconButton(iconName: "plus", solid: true) { showNewEditor = true } }
+            right: { IconButton(iconName: "plus", solid: true) { tapCreateTag() } }
         )
+    }
+
+    /// Gate + paywall presentation for create-new-tag.
+    private func tapCreateTag() {
+        let decision = EntitlementGate.canCreateTag(
+            current: tags.count,
+            limits: entitlementManager.limits
+        )
+        switch decision {
+        case .allowed:
+            showNewEditor = true
+        case .blocked(let reason):
+            paywallReason = reason
+            showPaywall = true
+        }
     }
 
     // MARK: - Header
@@ -165,7 +187,7 @@ struct TagsView: View {
     /// Dashed "+ New tag" pill that opens the create-mode editor.
     private var newTagRow: some View {
         Button {
-            showNewEditor = true
+            tapCreateTag()
         } label: {
             HStack(spacing: 6) {
                 GemIcons.image("plus")

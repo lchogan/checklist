@@ -22,11 +22,15 @@ import SwiftData
 struct AddItemInline: View {
     @Environment(\.modelContext) private var ctx
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var entitlementManager: EntitlementManager
     let checklist: Checklist
     @Query(sort: [SortDescriptor(\Tag.sortKey, order: .forward)]) private var allTags: [Tag]
 
     @State private var text: String = ""
     @State private var selectedTagIDs: Set<UUID> = []
+
+    @State private var paywallReason: GateDecision.Reason? = nil
+    @State private var showPaywall = false
 
     var body: some View {
         BottomSheet {
@@ -64,6 +68,9 @@ struct AddItemInline: View {
                 }
                 .padding(.top, Theme.Spacing.sm)
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet(reason: paywallReason)
         }
     }
 
@@ -112,6 +119,17 @@ struct AddItemInline: View {
     /// to `ChecklistStore.addItem`.
     private func commit() {
         guard !trimmed.isEmpty else { return }
+        // Gate on max items per checklist. Block routes to the paywall and
+        // leaves the sheet open so the user's typed text isn't lost.
+        let decision = EntitlementGate.canAddItem(
+            currentItemsOnChecklist: checklist.items?.count ?? 0,
+            limits: entitlementManager.limits
+        )
+        if case .blocked(let reason) = decision {
+            paywallReason = reason
+            showPaywall = true
+            return
+        }
         let tags = allTags.filter { selectedTagIDs.contains($0.id) }
         _ = try? ChecklistStore.addItem(text: trimmed, to: checklist, tags: tags, in: ctx)
         dismiss()

@@ -32,9 +32,17 @@ struct HomeView: View {
     @Query private var tags: [Tag]
     @Query private var completedRuns: [CompletedRun]
 
+    @EnvironmentObject private var entitlementManager: EntitlementManager
+    @EnvironmentObject private var storeKit: StoreKitManager
+
     @State private var selectedCategoryID: UUID? = nil  // nil = "All"
     @State private var showCreateSheet = false
     @State private var path = NavigationPath()
+
+    /// Reason passed to PaywallSheet when triggered by a gate. nil = opened
+    /// via Settings → Upgrade (no current gate trigger).
+    @State private var paywallReason: GateDecision.Reason? = nil
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -82,6 +90,9 @@ struct HomeView: View {
             .sheet(isPresented: $showCreateSheet) {
                 CreateChecklistSheet()
             }
+            .sheet(isPresented: $showPaywall) {
+                PaywallSheet(reason: paywallReason)
+            }
         }
     }
 
@@ -91,7 +102,7 @@ struct HomeView: View {
     private var topBar: some View {
         TopBar(
             left: { IconButton(iconName: "sparkle") {} },   // sun/theme — no-op
-            right: { IconButton(iconName: "plus", solid: true) { showCreateSheet = true } }
+            right: { IconButton(iconName: "plus", solid: true) { tapCreateList() } }
         )
     }
 
@@ -110,6 +121,22 @@ struct HomeView: View {
     }
 
     // MARK: - Helpers
+
+    /// Tapping `+` gates through EntitlementGate — blocked routes to the paywall
+    /// with a feature-specific reason instead of opening the create sheet.
+    private func tapCreateList() {
+        let decision = EntitlementGate.canCreateChecklist(
+            current: checklists.count,
+            limits: entitlementManager.limits
+        )
+        switch decision {
+        case .allowed:
+            showCreateSheet = true
+        case .blocked(let reason):
+            paywallReason = reason
+            showPaywall = true
+        }
+    }
 
     /// Builds the eyebrow label. Shows live run count when any checklists have
     /// active runs; falls back to a static label (§7 — never "Collections").
@@ -209,7 +236,7 @@ struct HomeView: View {
                 .font(Theme.body(size: 14))
                 .foregroundColor(Theme.dim)
             PillButton(title: "+ New list", color: Theme.amethyst) {
-                showCreateSheet = true
+                tapCreateList()
             }
         }
         .frame(maxWidth: .infinity)
