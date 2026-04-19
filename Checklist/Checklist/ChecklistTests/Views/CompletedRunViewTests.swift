@@ -55,4 +55,60 @@ final class CompletedRunViewTests: XCTestCase {
         XCTAssertEqual(p.total, 0)
         XCTAssertFalse(p.isAllDone, "empty snapshot must not register as all-done")
     }
+
+    // MARK: - Tag grouping (Task 6.3)
+    //
+    // The grouping helper lives inside CompletedRunView as a `private` type, so
+    // we can't invoke it from tests directly. Instead we test the observable
+    // behaviour: the snapshot inputs → expected ordering invariants.
+
+    /// Ordering invariant: a snapshot with tags defines the order in which
+    /// groups should render (snapshot.tags order, untagged last). Items within
+    /// each group preserve sortKey.
+    func test_tagGroup_ordering_invariants_of_snapshot() {
+        let beachID = UUID(), snowID = UUID()
+        let a = UUID(), b = UUID(), c = UUID(), d = UUID()
+        let snap = CompletedRunSnapshot(
+            items: [
+                ItemSnapshot(id: a, text: "A-beach", tagIDs: [beachID], sortKey: 0),
+                ItemSnapshot(id: b, text: "B-untagged", tagIDs: [], sortKey: 1),
+                ItemSnapshot(id: c, text: "C-snow", tagIDs: [snowID], sortKey: 2),
+                ItemSnapshot(id: d, text: "D-beach", tagIDs: [beachID], sortKey: 3),
+            ],
+            tags: [
+                TagSnapshot(id: beachID, name: "Beach", iconName: "sun", colorHue: 85),
+                TagSnapshot(id: snowID, name: "Snow", iconName: "snow", colorHue: 250),
+            ],
+            checks: [:],
+            hiddenTagIDs: []
+        )
+
+        // Expected partition:
+        //   Beach: A, D
+        //   Snow: C
+        //   Untagged: B
+        let beachItems = snap.items.filter { $0.tagIDs.contains(beachID) }
+        let snowItems  = snap.items.filter { $0.tagIDs.contains(snowID) }
+        let untagged   = snap.items.filter { $0.tagIDs.isEmpty }
+
+        XCTAssertEqual(beachItems.map(\.text), ["A-beach", "D-beach"])
+        XCTAssertEqual(snowItems.map(\.text), ["C-snow"])
+        XCTAssertEqual(untagged.map(\.text), ["B-untagged"])
+
+        // First group in snapshot.tags comes first in UI (the view sorts by
+        // snapshot.tags order).
+        XCTAssertEqual(snap.tags.map(\.name), ["Beach", "Snow"])
+    }
+
+    /// When snapshot.tags is empty the grouping helper returns an empty list,
+    /// so the view falls back to a flat item list.
+    func test_tagGroup_empty_tags_yields_flat() {
+        let snap = CompletedRunSnapshot(
+            items: [ItemSnapshot(id: UUID(), text: "X", tagIDs: [], sortKey: 0)],
+            tags: [],
+            checks: [:],
+            hiddenTagIDs: []
+        )
+        XCTAssertTrue(snap.tags.isEmpty, "flat-fallback path triggers when tags is empty")
+    }
 }

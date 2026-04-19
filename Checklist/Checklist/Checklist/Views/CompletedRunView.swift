@@ -46,7 +46,7 @@ struct CompletedRunView: View {
                         headerBlock
                         statusCard
                         completedBanner
-                        itemsFlat
+                        itemsGroupedOrFlat
                         forkCTA
                         Spacer(minLength: 40)
                     }
@@ -180,21 +180,7 @@ struct CompletedRunView: View {
         )
     }
 
-    // MARK: - Items (flat)
-
-    /// Flat list of item rows, sorted by snapshot sortKey. Tag grouping lands
-    /// in Task 6.3.
-    private var itemsFlat: some View {
-        VStack(spacing: Theme.Spacing.xs) {
-            ForEach(snap.items.sorted { $0.sortKey < $1.sortKey }) { item in
-                CompletedItemRow(
-                    text: item.text,
-                    state: snap.checks[item.id],
-                    tagColor: facetColor(for: item)
-                )
-            }
-        }
-    }
+    // MARK: - Items (flat or tag-grouped)
 
     /// Picks a facet tint from the first tag on the item, falling back to
     /// amethyst when the item is untagged.
@@ -203,6 +189,100 @@ struct CompletedRunView: View {
               let tag = snap.tags.first(where: { $0.id == firstID })
         else { return Theme.amethyst }
         return Theme.gemColor(hue: tag.colorHue)
+    }
+
+    // MARK: - Tag grouping
+
+    /// Group of items that share the same lead tag, used by `itemsGroupedOrFlat`
+    /// to render section headers on snapshots with tags.
+    private struct TagGroup: Identifiable {
+        let id: UUID             // tag id, or UUID() sentinel for the "Untagged" bucket
+        let name: String         // "UNTAGGED" for the sentinel
+        let colorHue: Double     // 0 for untagged (renders dim)
+        let items: [ItemSnapshot]
+    }
+
+    /// Groups snapshot items by the first tag they reference, preserving
+    /// sortKey ordering within each group. Items with no tags fall into an
+    /// "UNTAGGED" bucket shown last. The return list is empty when the
+    /// snapshot has no tags at all — callers should fall back to a flat list.
+    private var tagGroups: [TagGroup] {
+        guard !snap.tags.isEmpty else { return [] }
+        let sortedItems = snap.items.sorted { $0.sortKey < $1.sortKey }
+        var groups: [UUID: [ItemSnapshot]] = [:]
+        var untagged: [ItemSnapshot] = []
+        for item in sortedItems {
+            if let firstID = item.tagIDs.first {
+                groups[firstID, default: []].append(item)
+            } else {
+                untagged.append(item)
+            }
+        }
+        // Preserve the tag order from the snapshot, skipping tags with no items.
+        var out: [TagGroup] = []
+        for tag in snap.tags {
+            guard let items = groups[tag.id], !items.isEmpty else { continue }
+            out.append(TagGroup(
+                id: tag.id,
+                name: tag.name.uppercased(),
+                colorHue: tag.colorHue,
+                items: items
+            ))
+        }
+        if !untagged.isEmpty {
+            out.append(TagGroup(
+                id: UUID(),
+                name: "UNTAGGED",
+                colorHue: 0,
+                items: untagged
+            ))
+        }
+        return out
+    }
+
+    /// Renders items as flat list when the snapshot has no tags, or as
+    /// tag-grouped sections with header labels when tags exist.
+    @ViewBuilder
+    private var itemsGroupedOrFlat: some View {
+        let groups = tagGroups
+        if groups.isEmpty {
+            VStack(spacing: Theme.Spacing.xs) {
+                ForEach(snap.items.sorted { $0.sortKey < $1.sortKey }) { item in
+                    CompletedItemRow(
+                        text: item.text,
+                        state: snap.checks[item.id],
+                        tagColor: facetColor(for: item)
+                    )
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        HStack(spacing: 6) {
+                            if group.name != "UNTAGGED" {
+                                Circle()
+                                    .fill(Theme.gemColor(hue: group.colorHue))
+                                    .frame(width: 8, height: 8)
+                            }
+                            Text(group.name)
+                                .font(Theme.eyebrow())
+                                .tracking(2)
+                                .foregroundColor(Theme.dim)
+                        }
+                        ForEach(group.items) { item in
+                            CompletedItemRow(
+                                text: item.text,
+                                state: snap.checks[item.id],
+                                tagColor: group.name == "UNTAGGED"
+                                    ? Theme.amethyst
+                                    : Theme.gemColor(hue: group.colorHue)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Fork CTA
