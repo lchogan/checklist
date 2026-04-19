@@ -57,6 +57,7 @@ struct ChecklistRunView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                         headerBlock
+                        progressRow
                         // Body fills in across Tasks 5.3 through 5.13.
                         if sortedItems.isEmpty {
                             emptyItemsBody
@@ -106,6 +107,40 @@ struct ChecklistRunView: View {
                 .foregroundColor(Theme.text)
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Progress row (Task 5.5)
+
+    /// Progress bar showing done/total count and percentage. Visible only when
+    /// a live run exists and the checklist has items (capture 04).
+    @ViewBuilder
+    private var progressRow: some View {
+        if let run = currentRun, !sortedItems.isEmpty {
+            let progress = RunProgress.compute(
+                items: sortedItems,
+                checks: run.checks ?? [],
+                hiddenTagIDs: run.hiddenTagIDs
+            )
+            HStack(spacing: Theme.Spacing.md) {
+                GemBar(progress: progress.percent, segments: 14)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("PROGRESS")
+                            .font(Theme.eyebrow())
+                            .tracking(1.5)
+                            .foregroundColor(Theme.dim)
+                        Text("\(progress.done) of \(progress.total)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Theme.text)
+                    }
+                    Text("\(Int((progress.percent * 100).rounded()))%")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(Theme.citrine)
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+        }
     }
 
     /// Shown when the checklist has no items (capture 11): a dashed "+ Add item" stub row.
