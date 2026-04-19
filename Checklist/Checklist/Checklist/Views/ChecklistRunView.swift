@@ -57,6 +57,7 @@ struct ChecklistRunView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                         headerBlock
+                        tagChipBar
                         progressRow
                         // Body fills in across Tasks 5.3 through 5.13.
                         if sortedItems.isEmpty {
@@ -107,6 +108,35 @@ struct ChecklistRunView: View {
                 .foregroundColor(Theme.text)
         }
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    // MARK: - Tag hide chip bar (Task 5.6)
+
+    /// All tags referenced by at least one item on this checklist, sorted
+    /// alphabetically for a stable display order.
+    private var usedTags: [Tag] {
+        let ids = Set((sortedItems.flatMap { $0.tags ?? [] }).map(\.id))
+        // Deduplicate while preserving insertion order, then sort alphabetically.
+        return (sortedItems.flatMap { $0.tags ?? [] })
+            .reduce(into: [Tag]()) { acc, t in
+                if !acc.contains(where: { $0.id == t.id }) { acc.append(t) }
+            }
+            .filter { ids.contains($0.id) }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// Horizontal tag-hide chip row. Visible only when a live run exists and
+    /// the checklist has at least one tagged item.
+    @ViewBuilder
+    private var tagChipBar: some View {
+        if let run = currentRun, !usedTags.isEmpty {
+            TagHideChipBar(
+                tags: usedTags,
+                hiddenTagIDs: run.hiddenTagIDs
+            ) { tagID in
+                try? RunStore.toggleHideTag(run: run, tagID: tagID, in: ctx)
+            }
+        }
     }
 
     // MARK: - Progress row (Task 5.5)
