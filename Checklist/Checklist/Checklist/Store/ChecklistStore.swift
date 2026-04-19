@@ -13,11 +13,7 @@
 import Foundation
 import SwiftData
 
-/// Stateless operations on Checklist, Item, and ChecklistCategory. Every function
-/// takes a `ModelContext` explicitly — no hidden singletons. Views call these directly.
-///
-/// - Note: Structural edits (add/rename/reorder/delete item) propagate automatically
-///   to live Runs because items live on Checklist, per v4 architecture.
+/// Stateless CRUD namespace for `Checklist`, `Item`, and `ChecklistCategory`.
 enum ChecklistStore {
 
     // MARK: - Checklist CRUD
@@ -146,12 +142,21 @@ enum ChecklistStore {
     /// - Throws: If the fetch or save fails.
     static func deleteItem(_ item: Item, in context: ModelContext) throws {
         let itemID = item.id
-        let checklistID = item.checklist?.id
+        guard let checklistID = item.checklist?.id else {
+            // No parent checklist means no Check records can legitimately be scoped to
+            // this item, so just delete and return.
+            context.delete(item)
+            try context.save()
+            return
+        }
         context.delete(item)
 
         // Clean up Check records referencing this item in all live Runs on the same
         // checklist. Check.itemID is a UUID (not a relationship), so SwiftData won't
         // cascade — we must delete orphans manually.
+        // The checklist guard cannot be pushed into #Predicate because optional-chained
+        // relationship traversals (check.run?.checklist?.id) aren't supported by the
+        // macro. Filter in-memory on the already-small itemID slice instead.
         let descriptor = FetchDescriptor<Check>(
             predicate: #Predicate<Check> { $0.itemID == itemID }
         )

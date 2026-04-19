@@ -77,6 +77,7 @@ final class ChecklistStoreTests: XCTestCase {
             fetchedChecks.isEmpty,
             "deleting item should clear its checks in all live runs"
         )
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<Item>()).count, 0)
     }
 
     /// Deleting a checklist cascade-deletes its items.
@@ -100,5 +101,51 @@ final class ChecklistStoreTests: XCTestCase {
         ctx.insert(Run(checklist: list, name: "Two"))
         try ctx.save()
         XCTAssertEqual(ChecklistStore.liveRunCount(for: list), 2)
+    }
+
+    /// Reordering items assigns sequential sortKeys matching the supplied order.
+    func test_reorderItems_assigns_sequential_sortKeys() throws {
+        let ctx = try makeContext()
+        let list = try ChecklistStore.create(name: "Trip", in: ctx)
+        let a = try ChecklistStore.addItem(text: "A", to: list, in: ctx)
+        let b = try ChecklistStore.addItem(text: "B", to: list, in: ctx)
+        let c = try ChecklistStore.addItem(text: "C", to: list, in: ctx)
+
+        // Reorder to [C, A, B]
+        try ChecklistStore.reorderItems([c, a, b], in: ctx)
+
+        XCTAssertEqual(c.sortKey, 0)
+        XCTAssertEqual(a.sortKey, 1)
+        XCTAssertEqual(b.sortKey, 2)
+    }
+
+    /// Deleting an item that has no parent checklist deletes only that item and
+    /// does not touch Check records belonging to unrelated checklists.
+    func test_deleteItem_with_nil_checklist_deletes_only_item() throws {
+        let ctx = try makeContext()
+
+        // Create an unrelated checklist + run + check to ensure we don't wrongly delete it.
+        let otherList = try ChecklistStore.create(name: "Other", in: ctx)
+        let otherItem = try ChecklistStore.addItem(text: "Other item", to: otherList, in: ctx)
+        let otherRun = Run(checklist: otherList, name: "Other run")
+        let otherCheck = Check(itemID: otherItem.id)
+        otherCheck.run = otherRun
+        ctx.insert(otherRun); ctx.insert(otherCheck)
+        try ctx.save()
+
+        // Orphan item — inserted without a checklist.
+        let orphan = Item(text: "Orphan", sortKey: 0)
+        ctx.insert(orphan)
+        try ctx.save()
+
+        try ChecklistStore.deleteItem(orphan, in: ctx)
+
+        // Orphan item is gone; the unrelated item remains.
+        let items = try ctx.fetch(FetchDescriptor<Item>())
+        XCTAssertEqual(items.count, 1, "only the orphan item should be deleted")
+        XCTAssertEqual(items.first?.text, "Other item")
+
+        // The other checklist's Check record is NOT deleted.
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<Check>()).count, 1)
     }
 }
